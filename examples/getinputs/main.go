@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"github.com/pkg/errors"
 	"net/http"
 	"syscall"
 	"time"
@@ -14,6 +14,12 @@ import (
 
 const Host = "http://node03.iotatoken.nl:15265"
 
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
 	client := http.Client{
 		Timeout: 10 * time.Second,
@@ -22,20 +28,16 @@ func main() {
 	fmt.Print("input your seed: ")
 	api := giota.NewAPI(Host, &client)
 	seed, err := terminal.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		log.Fatal(err)
-	}
+	must(err)
 
 	seedT, err := giota.ToTrytes(string(seed))
-	if err != nil {
-		log.Fatal(err)
-	}
+	must(err)
 
 	fmt.Print("\nhow many addresses should we check: ")
 	var offset int
 	n, err := fmt.Scanf("%d\n", &offset)
 	if err != nil || n < 1 {
-		log.Fatal("expecting integer offset")
+		panic(errors.New("expting integer offset"))
 	}
 
 	fmt.Print("which security level should the addresses be generated at (0, 1, 2; default is 2): ")
@@ -48,9 +50,7 @@ func main() {
 	println("Getting balances")
 	// GetInputs(API, seed, start index, end index, threshold, security level)
 	inputs, err := giota.GetInputs(api, seedT, 0, offset, 0, slevel)
-	if err != nil {
-		log.Fatal(err)
-	}
+	must(err)
 
 	fmt.Println(inputs)
 }
