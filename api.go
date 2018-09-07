@@ -57,6 +57,12 @@ var (
 	}
 )
 
+var (
+	ErrInvalidTailTransactionHash = errors.New("the given transaction hash is not a trail transaction hash")
+	ErrTxNotFound = errors.New("couldn't find transaction via getTrytes")
+	ErrTxNotFoundInInclusionState = errors.New("couldn't find transactions in inclusion state call")
+)
+
 // RandomNode returns a random node from PublicNodes. If local IRI exists, return
 // localhost address.
 func RandomNode() string {
@@ -373,7 +379,7 @@ type GetTrytesResponse struct {
 }
 
 // GetTrytes calls GetTrytes API.
-func (api *API) GetTrytes(hashes []Trytes) (*GetTrytesResponse, error) {
+func (api *API) GetTrytes(hashes ...Trytes) (*GetTrytesResponse, error) {
 	resp := &GetTrytesResponse{}
 	err := api.do(&struct {
 		Command string   `json:"command"`
@@ -585,6 +591,41 @@ func (api *API) InterruptAttachingToTangle() error {
 	return err
 }
 
+// BroadcastBundle re-broadcasts all transactions in a bundle given the tail transaction hash.
+// It might be useful when transactions did not properly propagate, particularly in the case of large bundles.
+func(api *API) BroadcastBundle(tailTransactionHash Trytes) error {
+	var getTrytesRes *GetTrytesResponse
+	var err error
+
+	getTrytesRes, err = api.GetTrytes(tailTransactionHash)
+	if err != nil {
+		return err
+	}
+
+	tx := getTrytesRes.Trytes[0]
+
+	// check whether we actually got the tail transaction passed in
+	if tx.CurrentIndex != 0 {
+		return ErrInvalidTailTransactionHash
+	}
+
+	txsInBundle := int(tx.LastIndex+1)
+	bundle := make(Bundle, txsInBundle)
+	bundle[0] = tx
+
+	for i := 1; i < txsInBundle; i++ {
+		getTrytesRes, err = api.GetTrytes(tx.TrunkTransaction)
+		if err != nil {
+			return err
+		}
+
+		tx = getTrytesRes.Trytes[0]
+		bundle[i] = tx
+	}
+
+	return api.BroadcastTransactions(bundle)
+}
+
 // BroadcastTransactionsRequest is for BroadcastTransactions API request.
 type BroadcastTransactionsRequest struct {
 	Command string        `json:"command"`
@@ -633,20 +674,20 @@ func (api *API) GetLatestInclusion(hash []Trytes) ([]bool, error) {
 		err2 error
 	)
 
-	wd := sync.WaitGroup{}
-	wd.Add(2)
+	wg := sync.WaitGroup{}
+	wg.Add(2)
 
 	go func() {
-		gt, err1 = api.GetTrytes(hash)
-		wd.Done()
+		gt, err1 = api.GetTrytes(hash...)
+		wg.Done()
 	}()
 
 	go func() {
 		ni, err2 = api.GetNodeInfo()
-		wd.Done()
+		wg.Done()
 	}()
 
-	wd.Wait()
+	wg.Wait()
 
 	switch {
 	case err1 != nil:
@@ -654,7 +695,7 @@ func (api *API) GetLatestInclusion(hash []Trytes) ([]bool, error) {
 	case err2 != nil:
 		return nil, err2
 	case len(gt.Trytes) == 0:
-		return nil, errors.New("transaction is not found while GetTrytes")
+		return nil, ErrTxNotFound
 	}
 
 	resp, err := api.GetInclusionStates(hash, []Trytes{ni.LatestMilestone})
@@ -663,7 +704,7 @@ func (api *API) GetLatestInclusion(hash []Trytes) ([]bool, error) {
 	}
 
 	if len(resp.States) == 0 {
-		return nil, errors.New("transaction is not found while GetInclusionStates")
+		return nil, ErrTxNotFoundInInclusionState
 	}
 	return resp.States, nil
 }

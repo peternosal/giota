@@ -137,7 +137,7 @@ func TestAPIGetTrytes(t *testing.T) {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
 
-		resp, err = api.GetTrytes([]Trytes{})
+		resp, err = api.GetTrytes([]Trytes{}...)
 		if err == nil {
 			break
 		}

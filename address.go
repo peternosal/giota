@@ -8,12 +8,11 @@ type Address Trytes
 
 // Error types for address
 var (
-	ErrInvalidAddressTrytes = errors.New("addresses without checksum are 81 trytes in length")
-	ErrInvalidAddressTrits  = errors.New("addresses without checksum are 243 trits in length")
-	ErrInvalidChecksum = errors.New("checksum doesn't match address")
+	ErrInvalidAddressLength = errors.New("addresses without checksum must be 81/243 trytes/trits in length")
+	ErrInvalidChecksum      = errors.New("checksum doesn't match address")
 )
 
-// NewAddress generates a new address from seed without checksum
+// NewAddress generates a new address from the given seed without the checksum
 func NewAddress(seed Trytes, index, security int) (Address, error) {
 	k, err := newKeyTrits(seed, index, security)
 	if err != nil {
@@ -25,7 +24,7 @@ func NewAddress(seed Trytes, index, security int) (Address, error) {
 		return "", err
 	}
 
-	addr, err := addressFromDigests(dg)
+	addr, err := AddressFromDigests(dg)
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +33,7 @@ func NewAddress(seed Trytes, index, security int) (Address, error) {
 	return tryt.ToAddress()
 }
 
-// NewAddresses generates new count addresses from seed without a checksum
+// NewAddresses generates N new addresses from the given seed without a checksum
 func NewAddresses(seed Trytes, start, count, security int) ([]Address, error) {
 	as := make([]Address, count)
 
@@ -49,10 +48,12 @@ func NewAddresses(seed Trytes, start, count, security int) ([]Address, error) {
 }
 
 
-// addressFromDigests calculates the address from the given digests
-func addressFromDigests(digests Trits) (Trits, error) {
+// AddressFromDigests calculates the address from the given digests
+func AddressFromDigests(digests Trits) (Trits, error) {
 	k := NewKerl()
-	k.Absorb(digests)
+	if err := k.Absorb(digests); err != nil {
+		return nil, err
+	}
 	return k.Squeeze(HashSize)
 }
 
@@ -85,7 +86,7 @@ func (t Trytes) ToAddress() (Address, error) {
 // IsValid returns nil if address is valid
 func (a Address) IsValid() error {
 	if !(len(a) == 81) {
-		return ErrInvalidAddressTrytes
+		return ErrInvalidAddressLength
 	}
 
 	return Trytes(a).IsValid()
@@ -105,7 +106,7 @@ func(a Address) IsValidChecksum(checksum Trytes) error {
 // Checksum returns checksum trytes
 func (a Address) Checksum() (Trytes, error) {
 	if len(a) != 81 {
-		return "", ErrInvalidAddressTrytes
+		return "", ErrInvalidAddressLength
 	}
 
 	checksumHash, err := a.ChecksumHash()
@@ -119,7 +120,9 @@ func (a Address) Checksum() (Trytes, error) {
 func (a Address) ChecksumHash() (Trytes, error) {
 	k := NewKerl()
 	t := Trytes(a).Trits()
-	k.Absorb(t)
+	if err := k.Absorb(t); err != nil {
+		return "", err
+	}
 	h, err := k.Squeeze(HashSize)
 	if err != nil {
 		return "", err
@@ -130,7 +133,7 @@ func (a Address) ChecksumHash() (Trytes, error) {
 // WithChecksum returns the address together with the checksum. (90 trytes)
 func (a Address) WithChecksum() (Trytes, error) {
 	if len(a) != 81 {
-		return "", ErrInvalidAddressTrytes
+		return "", ErrInvalidAddressLength
 	}
 
 	cu, err := a.Checksum()

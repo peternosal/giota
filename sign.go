@@ -242,7 +242,7 @@ func IsValidSig(expectedAddress Address, signatureFragments []Trytes, bundleHash
 		copy(digests[i*HashSize:], digestBuffer)
 	}
 
-	addrTrites, err := addressFromDigests(digests)
+	addrTrites, err := AddressFromDigests(digests)
 	if err != nil {
 		return false
 	}
