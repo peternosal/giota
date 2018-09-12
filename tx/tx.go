@@ -1,0 +1,223 @@
+/*
+MIT License
+
+Copyright (c) 2016 Sascha Hanse
+Copyright (c) 2017 Shinya Yagyu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+package tx
+
+import (
+	"encoding/json"
+	"errors"
+	"github.com/iotaledger/giota/curl"
+	"github.com/iotaledger/giota/signing"
+	"github.com/iotaledger/giota/trinary"
+	"time"
+)
+
+const (
+	DefaultMinWeightMagnitude = 14
+)
+
+// Tx contains all info needed for an iota transaction
+type Tx struct {
+	SignatureMessageFragment      trinary.Trytes
+	Address                       signing.Address
+	Value                         int64 `json:",string"`
+	ObsoleteTag                   trinary.Trytes
+	Timestamp                     time.Time `json:",string"`
+	CurrentIndex                  int64     `json:",string"`
+	LastIndex                     int64     `json:",string"`
+	Bundle                        trinary.Trytes
+	TrunkTx                       trinary.Trytes
+	BranchTx                      trinary.Trytes
+	Tag                           trinary.Trytes
+	AttachmentTimestamp           trinary.Trytes
+	AttachmentTimestampLowerBound trinary.Trytes
+	AttachmentTimestampUpperBound trinary.Trytes
+	Nonce                         trinary.Trytes
+}
+
+// errors for tx
+var (
+	ErrInvalidTxType = errors.New("invalid transaction type")
+	ErrInvalidTxHash = errors.New("invalid transaction hash")
+	ErrInvalidTx     = errors.New("malformed transaction")
+)
+
+// Trinary sizes and offsets of a transaction
+const (
+	SignatureMessageFragmentTrinaryOffset = 0
+	SignatureMessageFragmentTrinarySize   = 6561
+	AddressTrinaryOffset                  = SignatureMessageFragmentTrinaryOffset + SignatureMessageFragmentTrinarySize
+	AddressTrinarySize                    = 243
+	ValueTrinaryOffset                    = AddressTrinaryOffset + AddressTrinarySize
+	ValueTrinarySize                      = 81
+	ObsoleteTagTrinaryOffset              = ValueTrinaryOffset + ValueTrinarySize
+	ObsoleteTagTrinarySize                = 81
+	TimestampTrinaryOffset                = ObsoleteTagTrinaryOffset + ObsoleteTagTrinarySize
+	TimestampTrinarySize                  = 27
+	CurrentIndexTrinaryOffset             = TimestampTrinaryOffset + TimestampTrinarySize
+	CurrentIndexTrinarySize               = 27
+	LastIndexTrinaryOffset                = CurrentIndexTrinaryOffset + CurrentIndexTrinarySize
+	LastIndexTrinarySize                  = 27
+	BundleTrinaryOffset                   = LastIndexTrinaryOffset + LastIndexTrinarySize
+	BundleTrinarySize                     = 243
+	TrunkTxTrinaryOffset                  = BundleTrinaryOffset + BundleTrinarySize
+	TrunkTxTrinarySize                    = 243
+	BranchTxTrinaryOffset                 = TrunkTxTrinaryOffset + TrunkTxTrinarySize
+	BranchTxTrinarySize                   = 243
+	TagTrinaryOffset                      = BranchTxTrinaryOffset + BranchTxTrinarySize
+	TagTrinarySize                        = 81
+	AttachmentTimestampTrinaryOffset      = TagTrinaryOffset + TagTrinarySize
+	AttachmentTimestampTrinarySize        = 27
+
+	AttachmentTimestampLowerBoundTrinaryOffset = AttachmentTimestampTrinaryOffset + AttachmentTimestampTrinarySize
+	AttachmentTimestampLowerBoundTrinarySize   = 27
+	AttachmentTimestampUpperBoundTrinaryOffset = AttachmentTimestampLowerBoundTrinaryOffset + AttachmentTimestampLowerBoundTrinarySize
+	AttachmentTimestampUpperBoundTrinarySize   = 27
+	NonceTrinaryOffset                         = AttachmentTimestampUpperBoundTrinaryOffset + AttachmentTimestampUpperBoundTrinarySize
+	NonceTrinarySize                           = 81
+
+	TransactionTrinarySize = SignatureMessageFragmentTrinarySize + AddressTrinarySize +
+		ValueTrinarySize + ObsoleteTagTrinarySize + TimestampTrinarySize +
+		CurrentIndexTrinarySize + LastIndexTrinarySize + BundleTrinarySize +
+		TrunkTxTrinarySize + BranchTxTrinarySize +
+		TagTrinarySize + AttachmentTimestampTrinarySize +
+		AttachmentTimestampLowerBoundTrinarySize + AttachmentTimestampUpperBoundTrinarySize +
+		NonceTrinarySize
+)
+
+// NewTx makes a new transaction from the trytes
+func NewTx(trytes trinary.Trytes) (*Tx, error) {
+	t := Tx{}
+	if err := checkTx(trytes); err != nil {
+		return nil, err
+	}
+
+	err := t.parser(trytes.Trits())
+	if err != nil {
+		return nil, err
+	}
+
+	return &t, nil
+}
+
+func checkTx(trytes trinary.Trytes) error {
+	err := trytes.IsValid()
+
+	switch {
+	case err != nil:
+		return errors.New("invalid transaction " + err.Error())
+	case len(trytes) != TransactionTrinarySize/3:
+		return errors.New("invalid trits counts in transaction")
+	case trytes[2279:2295] != "9999999999999999":
+		return errors.New("invalid value in transaction")
+	default:
+		return nil
+	}
+}
+
+func (t *Tx) parser(trits trinary.Trits) error {
+	var err error
+	t.SignatureMessageFragment = trits[SignatureMessageFragmentTrinaryOffset:SignatureMessageFragmentTrinarySize].Trytes()
+	t.Address, err = signing.ToAddress(trits[AddressTrinaryOffset:AddressTrinaryOffset+AddressTrinarySize].Trytes())
+	if err != nil {
+		return err
+	}
+	t.Value = trits[ValueTrinaryOffset:ValueTrinaryOffset+ValueTrinarySize].Int()
+	t.ObsoleteTag = trits[ObsoleteTagTrinaryOffset:ObsoleteTagTrinaryOffset+ObsoleteTagTrinarySize].Trytes()
+	timestamp := trits[TimestampTrinaryOffset:TimestampTrinaryOffset+TimestampTrinarySize].Int()
+	t.Timestamp = time.Unix(timestamp, 0)
+	t.CurrentIndex = trits[CurrentIndexTrinaryOffset:CurrentIndexTrinaryOffset+CurrentIndexTrinarySize].Int()
+	t.LastIndex = trits[LastIndexTrinaryOffset:LastIndexTrinaryOffset+LastIndexTrinarySize].Int()
+	t.Bundle = trits[BundleTrinaryOffset:BundleTrinaryOffset+BundleTrinarySize].Trytes()
+	t.TrunkTx = trits[TrunkTxTrinaryOffset:TrunkTxTrinaryOffset+TrunkTxTrinarySize].Trytes()
+	t.BranchTx = trits[BranchTxTrinaryOffset:BranchTxTrinaryOffset+BranchTxTrinarySize].Trytes()
+	t.Tag = trits[TagTrinaryOffset:TagTrinaryOffset+TagTrinarySize].Trytes()
+	t.AttachmentTimestamp = trits[AttachmentTimestampTrinaryOffset:AttachmentTimestampTrinaryOffset+AttachmentTimestampTrinarySize].Trytes()
+	t.AttachmentTimestampLowerBound = trits[AttachmentTimestampLowerBoundTrinaryOffset:AttachmentTimestampLowerBoundTrinaryOffset+AttachmentTimestampLowerBoundTrinarySize].Trytes()
+	t.AttachmentTimestampUpperBound = trits[AttachmentTimestampUpperBoundTrinaryOffset:AttachmentTimestampUpperBoundTrinaryOffset+AttachmentTimestampUpperBoundTrinarySize].Trytes()
+	t.Nonce = trits[NonceTrinaryOffset:NonceTrinaryOffset+NonceTrinarySize].Trytes()
+
+	return nil
+}
+
+// Trytes converts the transaction to Trytes.
+func (t *Tx) Trytes() trinary.Trytes {
+	tr := make(trinary.Trits, TransactionTrinarySize)
+	copy(tr, t.SignatureMessageFragment.Trits())
+	copy(tr[AddressTrinaryOffset:], trinary.Trytes(t.Address).Trits())
+	copy(tr[ValueTrinaryOffset:], trinary.Int2Trits(t.Value, ValueTrinarySize))
+	copy(tr[ObsoleteTagTrinaryOffset:], t.ObsoleteTag.Trits())
+	copy(tr[TimestampTrinaryOffset:], trinary.Int2Trits(t.Timestamp.Unix(), TimestampTrinarySize))
+	copy(tr[CurrentIndexTrinaryOffset:], trinary.Int2Trits(t.CurrentIndex, CurrentIndexTrinarySize))
+	copy(tr[LastIndexTrinaryOffset:], trinary.Int2Trits(t.LastIndex, LastIndexTrinarySize))
+	copy(tr[BundleTrinaryOffset:], t.Bundle.Trits())
+	copy(tr[TrunkTxTrinaryOffset:], t.TrunkTx.Trits())
+	copy(tr[BranchTxTrinaryOffset:], t.BranchTx.Trits())
+	copy(tr[TagTrinaryOffset:], t.Tag.Trits())
+	copy(tr[AttachmentTimestampTrinaryOffset:], t.AttachmentTimestamp.Trits())
+	copy(tr[AttachmentTimestampLowerBoundTrinaryOffset:], t.AttachmentTimestampLowerBound.Trits())
+	copy(tr[AttachmentTimestampUpperBoundTrinaryOffset:], t.AttachmentTimestampUpperBound.Trits())
+	copy(tr[NonceTrinaryOffset:], t.Nonce.Trits())
+	return tr.Trytes()
+}
+
+// HasValidNonce checks if the transaction has the valid MinWeightMagnitude.
+// In order to check the MWM we count trailing 0's of the curlp hash of a
+// transaction.
+func (t *Tx) HasValidNonce(mwm int64) bool {
+	return t.Hash().Trits().TrailingZeros() >= mwm
+}
+
+// Hash returns the hash of the transaction.
+func (t *Tx) Hash() trinary.Trytes {
+	return curl.Hash(t.Trytes())
+}
+
+// UnmarshalJSON makes transaction struct from json.
+func (t *Tx) UnmarshalJSON(b []byte) error {
+	var s trinary.Trytes
+	var err error
+
+	if err = json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	if err = checkTx(s); err != nil {
+		return err
+	}
+
+	return t.parser(s.Trits())
+}
+
+// MarshalJSON makes trytes ([]byte) from a transaction.
+func (t *Tx) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.Trytes() + `"`), nil
+}
+
+// Checks if given transaction object is tail transaction.
+// A tail transaction is one with currentIndex=0.
+func (t *Tx) IsTail() bool {
+	return t.CurrentIndex == 0
+}

@@ -31,10 +31,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/iotaledger/giota/bundle"
+	"github.com/iotaledger/giota/curl"
+	"github.com/iotaledger/giota/pow"
+	"github.com/iotaledger/giota/signing"
+	"github.com/iotaledger/giota/trinary"
+	"github.com/iotaledger/giota/tx"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 )
 
 // PublicNodes is a list of known public nodes from http://iotasupport.com/lightwallet.shtml.
@@ -59,7 +66,7 @@ var (
 
 var (
 	ErrInvalidTailTransactionHash = errors.New("the given transaction hash is not a trail transaction hash")
-	ErrTxNotFound = errors.New("couldn't find transaction via getTrytes")
+	ErrTxNotFound                 = errors.New("couldn't find transaction via getTrytes")
 	ErrTxNotFoundInInclusionState = errors.New("couldn't find transactions in inclusion state call")
 )
 
@@ -175,23 +182,23 @@ type GetNodeInfoRequest struct {
 
 // GetNodeInfoResponse is for GetNode API response.
 type GetNodeInfoResponse struct {
-	AppName                            string `json:"appName"`
-	AppVersion                         string `json:"appVersion"`
-	Duration                           int64  `json:"duration"`
-	JREVersion                         string `json:"jreVersion"`
-	JREAvailableProcessors             int64  `json:"jreAvailableProcessors"`
-	JREFreeMemory                      int64  `json:"jreFreeMemory"`
-	JREMaxMemory                       int64  `json:"jreMaxMemory"`
-	JRETotalMemory                     int64  `json:"jreTotalMemory"`
-	LatestMilestone                    Trytes `json:"latestMilestone"`
-	LatestMilestoneIndex               int64  `json:"latestMilestoneIndex"`
-	LatestSolidSubtangleMilestone      Trytes `json:"latestSolidSubtangleMilestone"`
-	LatestSolidSubtangleMilestoneIndex int64  `json:"latestSolidSubtangleMilestoneIndex"`
-	Neighbors                          int64  `json:"neighbors"`
-	PacketQueueSize                    int64  `json:"packetQueueSize"`
-	Time                               int64  `json:"time"`
-	Tips                               int64  `json:"tips"`
-	TransactionsToRequest              int64  `json:"transactionsToRequest"`
+	AppName                            string         `json:"appName"`
+	AppVersion                         string         `json:"appVersion"`
+	Duration                           int64          `json:"duration"`
+	JREVersion                         string         `json:"jreVersion"`
+	JREAvailableProcessors             int64          `json:"jreAvailableProcessors"`
+	JREFreeMemory                      int64          `json:"jreFreeMemory"`
+	JREMaxMemory                       int64          `json:"jreMaxMemory"`
+	JRETotalMemory                     int64          `json:"jreTotalMemory"`
+	LatestMilestone                    trinary.Trytes `json:"latestMilestone"`
+	LatestMilestoneIndex               int64          `json:"latestMilestoneIndex"`
+	LatestSolidSubtangleMilestone      trinary.Trytes `json:"latestSolidSubtangleMilestone"`
+	LatestSolidSubtangleMilestoneIndex int64          `json:"latestSolidSubtangleMilestoneIndex"`
+	Neighbors                          int64          `json:"neighbors"`
+	PacketQueueSize                    int64          `json:"packetQueueSize"`
+	Time                               int64          `json:"time"`
+	Tips                               int64          `json:"tips"`
+	TransactionsToRequest              int64          `json:"transactionsToRequest"`
 }
 
 // GetNodeInfo calls GetNodeInfo API.
@@ -206,11 +213,11 @@ func (api *API) GetNodeInfo() (*GetNodeInfoResponse, error) {
 
 // CheckConsistency calls CheckConsistency API which returns true if confirming
 // the specified tails would result in a consistent ledger state.
-func (api *API) CheckConsistency(tails []Trytes) (*CheckConsistencyResponse, error) {
+func (api *API) CheckConsistency(tails []trinary.Trytes) (*CheckConsistencyResponse, error) {
 	resp := &CheckConsistencyResponse{}
 	err := api.do(&struct {
-		Command string   `json:"command"`
-		Tails   []Trytes `json:"tails"`
+		Command string           `json:"command"`
+		Tails   []trinary.Trytes `json:"tails"`
 	}{
 		"checkConsistency",
 		tails,
@@ -228,13 +235,13 @@ type CheckConsistencyResponse struct {
 
 // Neighbor is a part of response of GetNeighbors API.
 type Neighbor struct {
-	Address                           Address `json:"address"`
-	ConnectionType                    string  `json:"connectionType"`
-	NumberOfAllTransactions           int64   `json:"numberOfAllTransactions"`
-	NumberOfInvalidTransactions       int64   `json:"numberOfInvalidTransactions"`
-	NumberOfNewTransactions           int64   `json:"numberOfNewTransactions"`
-	NumberOfRandomTransactionRequests int64   `json:"numberOfRandomTransactionRequests"`
-	NumberOfSentTransactions          int64   `json:"numberOfSentTransactions"`
+	Address                           signing.Address `json:"address"`
+	ConnectionType                    string          `json:"connectionType"`
+	NumberOfAllTransactions           int64           `json:"numberOfAllTransactions"`
+	NumberOfInvalidTransactions       int64           `json:"numberOfInvalidTransactions"`
+	NumberOfNewTransactions           int64           `json:"numberOfNewTransactions"`
+	NumberOfRandomTransactionRequests int64           `json:"numberOfRandomTransactionRequests"`
+	NumberOfSentTransactions          int64           `json:"numberOfSentTransactions"`
 }
 
 // GetNeighborsRequest is for GetNeighbors API request.
@@ -323,8 +330,8 @@ type GetTipsRequest struct {
 
 // GetTipsResponse is for GetTips API response.
 type GetTipsResponse struct {
-	Duration int64    `json:"duration"`
-	Hashes   []Trytes `json:"hashes"`
+	Duration int64            `json:"duration"`
+	Hashes   []trinary.Trytes `json:"hashes"`
 }
 
 // GetTips calls GetTips API.
@@ -339,17 +346,17 @@ func (api *API) GetTips() (*GetTipsResponse, error) {
 
 // FindTransactionsRequest is for FindTransactions API request.
 type FindTransactionsRequest struct {
-	Command   string    `json:"command"`
-	Bundles   []Trytes  `json:"bundles,omitempty"`
-	Addresses []Address `json:"addresses,omitempty"`
-	Tags      []Trytes  `json:"tags,omitempty"`
-	Approvees []Trytes  `json:"approvees,omitempty"`
+	Command   string            `json:"command"`
+	Bundles   []trinary.Trytes  `json:"bundles,omitempty"`
+	Addresses []signing.Address `json:"addresses,omitempty"`
+	Tags      []trinary.Trytes  `json:"tags,omitempty"`
+	Approvees []trinary.Trytes  `json:"approvees,omitempty"`
 }
 
 // FindTransactionsResponse is for FindTransaction API response.
 type FindTransactionsResponse struct {
-	Duration int64    `json:"duration"`
-	Hashes   []Trytes `json:"hashes"`
+	Duration int64            `json:"duration"`
+	Hashes   []trinary.Trytes `json:"hashes"`
 }
 
 // FindTransactions calls FindTransactions API.
@@ -368,22 +375,22 @@ func (api *API) FindTransactions(ft *FindTransactionsRequest) (*FindTransactions
 
 // GetTrytesRequest is for GetTrytes API request.
 type GetTrytesRequest struct {
-	Command string   `json:"command"`
-	Hashes  []Trytes `json:"hashes"`
+	Command string           `json:"command"`
+	Hashes  []trinary.Trytes `json:"hashes"`
 }
 
 // GetTrytesResponse is for GetTrytes API response.
 type GetTrytesResponse struct {
-	Duration int64         `json:"duration"`
-	Trytes   []Transaction `json:"trytes"`
+	Duration int64   `json:"duration"`
+	Trytes   []tx.Tx `json:"trytes"`
 }
 
 // GetTrytes calls GetTrytes API.
-func (api *API) GetTrytes(hashes ...Trytes) (*GetTrytesResponse, error) {
+func (api *API) GetTrytes(hashes ...trinary.Trytes) (*GetTrytesResponse, error) {
 	resp := &GetTrytesResponse{}
 	err := api.do(&struct {
-		Command string   `json:"command"`
-		Hashes  []Trytes `json:"hashes"`
+		Command string           `json:"command"`
+		Hashes  []trinary.Trytes `json:"hashes"`
 	}{
 		"getTrytes",
 		hashes,
@@ -394,9 +401,9 @@ func (api *API) GetTrytes(hashes ...Trytes) (*GetTrytesResponse, error) {
 
 // GetInclusionStatesRequest is for GetInclusionStates API request.
 type GetInclusionStatesRequest struct {
-	Command      string   `json:"command"`
-	Transactions []Trytes `json:"transactions"`
-	Tips         []Trytes `json:"tips"`
+	Command      string           `json:"command"`
+	Transactions []trinary.Trytes `json:"transactions"`
+	Tips         []trinary.Trytes `json:"tips"`
 }
 
 // GetInclusionStatesResponse is for GetInclusionStates API response.
@@ -406,12 +413,12 @@ type GetInclusionStatesResponse struct {
 }
 
 // GetInclusionStates calls GetInclusionStates API.
-func (api *API) GetInclusionStates(tx []Trytes, tips []Trytes) (*GetInclusionStatesResponse, error) {
+func (api *API) GetInclusionStates(tx []trinary.Trytes, tips []trinary.Trytes) (*GetInclusionStatesResponse, error) {
 	resp := &GetInclusionStatesResponse{}
 	err := api.do(&struct {
-		Command      string   `json:"command"`
-		Transactions []Trytes `json:"transactions"`
-		Tips         []Trytes `json:"tips"`
+		Command      string           `json:"command"`
+		Transactions []trinary.Trytes `json:"transactions"`
+		Tips         []trinary.Trytes `json:"tips"`
 	}{
 		"getInclusionStates",
 		tx,
@@ -423,7 +430,7 @@ func (api *API) GetInclusionStates(tx []Trytes, tips []Trytes) (*GetInclusionSta
 
 // Balance is the total balance of an Address.
 type Balance struct {
-	Address Address
+	Address signing.Address
 	Value   int64
 	Index   int
 }
@@ -442,33 +449,33 @@ func (bs Balances) Total() int64 {
 
 // GetBalancesRequest is for GetBalances API request.
 type GetBalancesRequest struct {
-	Command   string    `json:"command"`
-	Addresses []Address `json:"addresses"`
-	Threshold int64     `json:"threshold"`
+	Command   string            `json:"command"`
+	Addresses []signing.Address `json:"addresses"`
+	Threshold int64             `json:"threshold"`
 }
 
 // GetBalancesResponse is for GetBalances API response.
 type GetBalancesResponse struct {
-	Duration       int64   `json:"duration"`
-	Balances       []int64 `json:"balances"`
-	Milestone      Trytes  `json:"milestone"`
-	MilestoneIndex int64   `json:"milestoneIndex"`
+	Duration       int64          `json:"duration"`
+	Balances       []int64        `json:"balances"`
+	Milestone      trinary.Trytes `json:"milestone"`
+	MilestoneIndex int64          `json:"milestoneIndex"`
 }
 
 // Balances call GetBalances API and returns address-balance pair struct.
-func (api *API) Balances(adr []Address) (Balances, error) {
-	r, err := api.GetBalances(adr, 100)
+func (api *API) Balances(addrs []signing.Address) (Balances, error) {
+	r, err := api.GetBalances(addrs, 100)
 	if err != nil {
 		return nil, err
 	}
 
-	bs := make(Balances, 0, len(adr))
+	bs := make(Balances, 0, len(addrs))
 	for i, bal := range r.Balances {
 		if bal <= 0 {
 			continue
 		}
 		b := Balance{
-			Address: adr[i],
+			Address: addrs[i],
 			Value:   bal,
 			Index:   i,
 		}
@@ -478,23 +485,23 @@ func (api *API) Balances(adr []Address) (Balances, error) {
 }
 
 // GetBalances calls GetBalances API.
-func (api *API) GetBalances(adr []Address, threshold int64) (*GetBalancesResponse, error) {
+func (api *API) GetBalances(adr []signing.Address, threshold int64) (*GetBalancesResponse, error) {
 	if threshold <= 0 {
 		threshold = 100
 	}
 
 	type getBalancesResponse struct {
-		Duration       int64    `json:"duration"`
-		Balances       []string `json:"balances"`
-		Milestone      Trytes   `json:"milestone"`
-		MilestoneIndex int64    `json:"milestoneIndex"`
+		Duration       int64          `json:"duration"`
+		Balances       []string       `json:"balances"`
+		Milestone      trinary.Trytes `json:"milestone"`
+		MilestoneIndex int64          `json:"milestoneIndex"`
 	}
 
 	resp := &getBalancesResponse{}
 	err := api.do(&struct {
-		Command   string    `json:"command"`
-		Addresses []Address `json:"addresses"`
-		Threshold int64     `json:"threshold"`
+		Command   string            `json:"command"`
+		Addresses []signing.Address `json:"addresses"`
+		Threshold int64             `json:"threshold"`
 	}{
 		"getBalances",
 		adr,
@@ -525,23 +532,21 @@ type GetTransactionsToApproveRequest struct {
 
 // GetTransactionsToApproveResponse is for GetTransactionsToApprove API response.
 type GetTransactionsToApproveResponse struct {
-	Duration          int64  `json:"duration"`
-	TrunkTransaction  Trytes `json:"trunkTransaction"`
-	BranchTransaction Trytes `json:"branchTransaction"`
+	Duration          int64          `json:"duration"`
+	TrunkTransaction  trinary.Trytes `json:"trunkTransaction"`
+	BranchTransaction trinary.Trytes `json:"branchTransaction"`
 }
 
 // GetTransactionsToApprove calls GetTransactionsToApprove API.
-func (api *API) GetTransactionsToApprove(depth, numWalks int64, reference Trytes) (*GetTransactionsToApproveResponse, error) {
+func (api *API) GetTransactionsToApprove(depth int, reference trinary.Trytes) (*GetTransactionsToApproveResponse, error) {
 	resp := &GetTransactionsToApproveResponse{}
 	err := api.do(&struct {
-		Command   string `json:"command"`
-		Depth     int64  `json:"depth"`
-		NumWalks  int64  `json:"numWalks,omitempty"`
-		Reference Trytes `json:"reference,omitempty"`
+		Command   string         `json:"command"`
+		Depth     int            `json:"depth"`
+		Reference trinary.Trytes `json:"reference,omitempty"`
 	}{
 		"getTransactionsToApprove",
 		depth,
-		numWalks,
 		reference,
 	}, resp)
 
@@ -550,17 +555,17 @@ func (api *API) GetTransactionsToApprove(depth, numWalks int64, reference Trytes
 
 // AttachToTangleRequest is for AttachToTangle API request.
 type AttachToTangleRequest struct {
-	Command            string        `json:"command"`
-	TrunkTransaction   Trytes        `json:"trunkTransaction"`
-	BranchTransaction  Trytes        `json:"branchTransaction"`
-	MinWeightMagnitude int64         `json:"minWeightMagnitude"`
-	Trytes             []Transaction `json:"trytes"`
+	Command            string         `json:"command"`
+	TrunkTransaction   trinary.Trytes `json:"trunkTransaction"`
+	BranchTransaction  trinary.Trytes `json:"branchTransaction"`
+	MinWeightMagnitude int64          `json:"minWeightMagnitude"`
+	Trytes             []tx.Tx        `json:"trytes"`
 }
 
 // AttachToTangleResponse is for AttachToTangle API response.
 type AttachToTangleResponse struct {
-	Duration int64         `json:"duration"`
-	Trytes   []Transaction `json:"trytes"`
+	Duration int64   `json:"duration"`
+	Trytes   []tx.Tx `json:"trytes"`
 }
 
 // AttachToTangle calls AttachToTangle API.
@@ -591,9 +596,26 @@ func (api *API) InterruptAttachingToTangle() error {
 	return err
 }
 
+type AccountData struct {
+	LatestAddress signing.Address    `json:"latest_address"`
+	Transfers     []bundle.Transfers `json:"transfers"`
+	Transactions  []trinary.Trytes   `json:"transactions"`
+	Inputs        []trinary.Trytes   `json:"inputs"`
+	Addresses     []trinary.Trytes   `json:"addresses"`
+}
+
+func (api *API) AccountData(seed trinary.Trytes, startIndex int, endIndex int, securityLvl int) (*AccountData, error) {
+
+	// 1. generate addresses up to first unused address
+
+	// 2. query to fetch complete bundles, balances and spending states of addresses
+
+	return nil, nil
+}
+
 // BroadcastBundle re-broadcasts all transactions in a bundle given the tail transaction hash.
 // It might be useful when transactions did not properly propagate, particularly in the case of large bundles.
-func(api *API) BroadcastBundle(tailTransactionHash Trytes) error {
+func (api *API) BroadcastBundle(tailTransactionHash trinary.Trytes) error {
 	var getTrytesRes *GetTrytesResponse
 	var err error
 
@@ -609,12 +631,12 @@ func(api *API) BroadcastBundle(tailTransactionHash Trytes) error {
 		return ErrInvalidTailTransactionHash
 	}
 
-	txsInBundle := int(tx.LastIndex+1)
-	bundle := make(Bundle, txsInBundle)
+	txsInBundle := int(tx.LastIndex + 1)
+	bundle := make(bundle.Bundle, txsInBundle)
 	bundle[0] = tx
 
 	for i := 1; i < txsInBundle; i++ {
-		getTrytesRes, err = api.GetTrytes(tx.TrunkTransaction)
+		getTrytesRes, err = api.GetTrytes(tx.TrunkTx)
 		if err != nil {
 			return err
 		}
@@ -628,15 +650,15 @@ func(api *API) BroadcastBundle(tailTransactionHash Trytes) error {
 
 // BroadcastTransactionsRequest is for BroadcastTransactions API request.
 type BroadcastTransactionsRequest struct {
-	Command string        `json:"command"`
-	Trytes  []Transaction `json:"trytes"`
+	Command string  `json:"command"`
+	Trytes  []tx.Tx `json:"trytes"`
 }
 
 // BroadcastTransactions calls BroadcastTransactions API.
-func (api *API) BroadcastTransactions(trytes []Transaction) error {
+func (api *API) BroadcastTransactions(trytes []tx.Tx) error {
 	err := api.do(&struct {
-		Command string        `json:"command"`
-		Trytes  []Transaction `json:"trytes"`
+		Command string  `json:"command"`
+		Trytes  []tx.Tx `json:"trytes"`
 	}{
 		"broadcastTransactions",
 		trytes,
@@ -647,15 +669,15 @@ func (api *API) BroadcastTransactions(trytes []Transaction) error {
 
 // StoreTransactionsRequest is for StoreTransactions API request.
 type StoreTransactionsRequest struct {
-	Command string        `json:"command"`
-	Trytes  []Transaction `json:"trytes"`
+	Command string  `json:"command"`
+	Trytes  []tx.Tx `json:"trytes"`
 }
 
 // StoreTransactions calls StoreTransactions API.
-func (api *API) StoreTransactions(trytes []Transaction) error {
+func (api *API) StoreTransactions(trytes []tx.Tx) error {
 	err := api.do(&struct {
-		Command string        `json:"command"`
-		Trytes  []Transaction `json:"trytes"`
+		Command string  `json:"command"`
+		Trytes  []tx.Tx `json:"trytes"`
 	}{
 		"storeTransactions",
 		trytes,
@@ -666,7 +688,7 @@ func (api *API) StoreTransactions(trytes []Transaction) error {
 
 // GetLatestInclusion takes the most recent solid milestone as returned by getNodeInfo
 // and uses it to get the inclusion states of a list of transaction hashes
-func (api *API) GetLatestInclusion(hash []Trytes) ([]bool, error) {
+func (api *API) GetLatestInclusion(hash []trinary.Trytes) ([]bool, error) {
 	var (
 		gt   *GetTrytesResponse
 		ni   *GetNodeInfoResponse
@@ -698,7 +720,7 @@ func (api *API) GetLatestInclusion(hash []Trytes) ([]bool, error) {
 		return nil, ErrTxNotFound
 	}
 
-	resp, err := api.GetInclusionStates(hash, []Trytes{ni.LatestMilestone})
+	resp, err := api.GetInclusionStates(hash, []trinary.Trytes{ni.LatestMilestone})
 	if err != nil {
 		return nil, err
 	}
@@ -707,4 +729,264 @@ func (api *API) GetLatestInclusion(hash []Trytes) ([]bool, error) {
 		return nil, ErrTxNotFoundInInclusionState
 	}
 	return resp.States, nil
+}
+
+// GetUsedAddress generates a new address which is not found in the tangle
+// and returns its new address and used addresses.
+func (api *API) GetUsedAddress(seed trinary.Trytes, security int) (signing.Address, []signing.Address, error) {
+	var all []signing.Address
+	for index := 0; ; index++ {
+		adr, err := signing.NewAddress(seed, index, security)
+		if err != nil {
+			return "", nil, err
+		}
+
+		r := FindTransactionsRequest{
+			Addresses: []signing.Address{adr},
+		}
+
+		resp, err := api.FindTransactions(&r)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if len(resp.Hashes) == 0 {
+			return adr, all, nil
+		}
+
+		// reached the end of the loop, so must be used address, repeat until return
+		all = append(all, adr)
+	}
+}
+
+// GetInputs gets all possible inputs of a seed and returns them with the total balance.
+// end must be under start+500.
+func (api *API) GetInputs(seed trinary.Trytes, start, end int, threshold int64, security int) (Balances, error) {
+	var err error
+	var adrs []signing.Address
+
+	if start > end || end > (start+500) {
+		return nil, errors.New("Invalid start/end provided")
+	}
+
+	switch {
+	case end > 0:
+		adrs, err = signing.NewAddresses(seed, start, end-start, security)
+	default:
+		_, adrs, err = api.GetUsedAddress(seed, security)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return api.Balances(adrs)
+}
+
+// gets all balances of the given inputs or if none supplied,
+// deterministically computes the balance from up to 100 addresses.
+// the supplied total must be less than the actual computed balance,
+// otherwise an error is returned
+func (api *API) setupInputs(seed trinary.Trytes, inputs bundle.AddressInfos, security int, total int64) (Balances, bundle.AddressInfos, error) {
+	var balances Balances
+	var err error
+
+	if inputs != nil {
+		// gather all addresses and balances from the provided address infos
+		addrs := make([]signing.Address, len(inputs))
+		for i, ai := range inputs {
+			addrs[i], err = ai.Address()
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		//  Validate the inputs by calling getBalances (in call to Balances)
+		balances, err = api.Balances(addrs)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		// If inputs with enough balance
+		balances, err = api.GetInputs(seed, 0, 100, total, security)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		inputs = make(bundle.AddressInfos, len(balances))
+		for i := range balances {
+			inputs[i].Index = balances[i].Index
+			inputs[i].Security = security
+			inputs[i].Seed = seed
+		}
+	}
+
+	// Return not enough balance error
+	if total > balances.Total() {
+		return nil, nil, errors.New("Not enough balance")
+	}
+	return balances, inputs, nil
+}
+
+// PrepareTransfers gets an array of transfer objects as input, and then prepares
+// the transfer by generating the correct bundle as well as choosing and signing the
+// inputs if necessary (if it's a value transfer).
+func (api *API) PrepareTransfers(seed trinary.Trytes, transfers bundle.Transfers, inputs bundle.AddressInfos, remainder signing.Address, security int) (bundle.Bundle, error) {
+	var err error
+
+	bundle, frags, total := transfers.AddOutputs()
+
+	// Get inputs if we are sending tokens
+	if total <= 0 {
+		// If no input required, don't sign and simply finalize the bundle
+		bundle.Finalize(frags)
+		return bundle, nil
+	}
+
+	balances, inputs, err := api.setupInputs(seed, inputs, security, total)
+	if err != nil {
+		return nil, err
+	}
+
+	err = api.AddRemainder(balances, &bundle, security, remainder, seed, total)
+	if err != nil {
+		return nil, err
+	}
+
+	bundle.Finalize(frags)
+	err = bundle.SignInputs(inputs)
+	return bundle, err
+}
+
+func (api *API) AddRemainder(in Balances, bundle *bundle.Bundle, security int, remainder signing.Address, seed trinary.Trytes, total int64) error {
+	for _, bal := range in {
+		var err error
+
+		// Add input as bundle entry
+		bundle.Add(security, bal.Address, -bal.Value, time.Now(), curl.EmptyHash)
+
+		// If there is a remainder value add extra output to send remaining funds to
+		if remain := bal.Value - total; remain > 0 {
+			// If user has provided remainder address use it to send remaining funds to
+			adr := remainder
+			if adr == "" {
+				// Generate a new Address by calling getNewAddress
+				adr, _, err = api.GetUsedAddress(seed, security)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Remainder bundle entry
+			bundle.Add(1, adr, remain, time.Now(), curl.EmptyHash)
+			return nil
+		}
+
+		// If multiple inputs provided, subtract the totalTransferValue by
+		// the inputs balance
+		if total -= bal.Value; total == 0 {
+			return nil
+		}
+	}
+	return nil
+}
+
+// SendTrytes does attachToTangle and finally, it broadcasts and stores the transactions.
+func (api *API) SendTrytes(depth int, trytes []tx.Tx, mwm int64, pow pow.PowFunc) error {
+	tra, err := api.GetTransactionsToApprove(depth, "")
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case pow == nil:
+		at := AttachToTangleRequest{
+			TrunkTransaction:   tra.TrunkTransaction,
+			BranchTransaction:  tra.BranchTransaction,
+			MinWeightMagnitude: mwm,
+			Trytes:             trytes,
+		}
+
+		// attach to tangle - do pow
+		attached, err := api.AttachToTangle(&at)
+		if err != nil {
+			return err
+		}
+
+		trytes = attached.Trytes
+	default:
+		err := bundle.DoPoW(tra.TrunkTransaction, tra.BranchTransaction, trytes, mwm, pow)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Broadcast and store tx
+	err = api.BroadcastTransactions(trytes)
+	if err != nil {
+		return err
+	}
+
+	return api.StoreTransactions(trytes)
+}
+
+// Promote sends a transaction using tail as reference (promotes the tail transaction)
+func (api *API) Promote(tail trinary.Trytes, depth int, trytes []tx.Tx, mwm int64, pow pow.PowFunc) error {
+	if len(trytes) == 0 {
+		return errors.New("empty transfer")
+	}
+	resp, err := api.CheckConsistency([]trinary.Trytes{tail})
+	if err != nil {
+		return err
+	} else if !resp.State {
+		return errors.New(resp.Info)
+	}
+
+	tra, err := api.GetTransactionsToApprove(depth, tail)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case pow == nil:
+		at := AttachToTangleRequest{
+			TrunkTransaction:   tra.TrunkTransaction,
+			BranchTransaction:  tra.BranchTransaction,
+			MinWeightMagnitude: mwm,
+			Trytes:             trytes,
+		}
+
+		// attach to tangle - do pow
+		attached, err := api.AttachToTangle(&at)
+		if err != nil {
+			return err
+		}
+
+		trytes = attached.Trytes
+	default:
+		err := bundle.DoPoW(tra.TrunkTransaction, tra.BranchTransaction, trytes, mwm, pow)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Broadcast and store tx
+	err = api.BroadcastTransactions(trytes)
+	if err != nil {
+		return err
+	}
+
+	return api.StoreTransactions(trytes)
+}
+
+// Send sends tokens. If you need to do pow locally, you must specify pow func,
+// otherwise this calls the AttachToTangle API
+func (api *API) Send(seed trinary.Trytes, security int, depth int, transfers bundle.Transfers, mwm int64, pow pow.PowFunc) (bundle.Bundle, error) {
+	bd, err := api.PrepareTransfers(seed, transfers, nil, "", security)
+	if err != nil {
+		return nil, err
+	}
+
+	err = api.SendTrytes(depth, []tx.Tx(bd), mwm, pow)
+	return bd, err
 }

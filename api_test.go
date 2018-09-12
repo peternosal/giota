@@ -25,7 +25,11 @@ SOFTWARE.
 
 package giota
 
-import "testing"
+import (
+	"github.com/iotaledger/giota/signing"
+	"github.com/iotaledger/giota/trinary"
+	"testing"
+)
 
 func TestAPIGetNodeInfo(t *testing.T) {
 	if testing.Short() {
@@ -107,7 +111,7 @@ func TestAPIFindTransactions(t *testing.T) {
 	var err error
 	var resp *FindTransactionsResponse
 
-	ftr := &FindTransactionsRequest{Bundles: []Trytes{"DEXRPLKGBROUQMKCLMRPG9HFKCACDZ9AB9HOJQWERTYWERJNOYLW9PKLOGDUPC9DLGSUH9UHSKJOASJRU"}}
+	ftr := &FindTransactionsRequest{Bundles: []trinary.Trytes{"DEXRPLKGBROUQMKCLMRPG9HFKCACDZ9AB9HOJQWERTYWERJNOYLW9PKLOGDUPC9DLGSUH9UHSKJOASJRU"}}
 	for i := 0; i < 5; i++ {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
@@ -137,7 +141,7 @@ func TestAPIGetTrytes(t *testing.T) {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
 
-		resp, err = api.GetTrytes([]Trytes{}...)
+		resp, err = api.GetTrytes([]trinary.Trytes{}...)
 		if err == nil {
 			break
 		}
@@ -161,7 +165,7 @@ func TestAPIGetInclusionStates(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
-		resp, err = api.GetInclusionStates([]Trytes{}, []Trytes{})
+		resp, err = api.GetInclusionStates([]trinary.Trytes{}, []trinary.Trytes{})
 		if err == nil {
 			break
 		}
@@ -186,7 +190,7 @@ func TestAPIGetBalances(t *testing.T) {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
 
-		resp, err = api.GetBalances([]Address{}, 100)
+		resp, err = api.GetBalances([]signing.Address{}, 100)
 		if err == nil {
 			break
 		}
@@ -211,7 +215,7 @@ func TestAPIGetTransactionsToApprove(t *testing.T) {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
 
-		resp, err = api.GetTransactionsToApprove(Depth, DefaultNumberOfWalks, "")
+		resp, err = api.GetTransactionsToApprove(3, 5, "")
 		if err == nil {
 			break
 		}
@@ -237,7 +241,7 @@ func TestAPIGetLatestInclusion(t *testing.T) {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
 
-		resp, err = api.GetLatestInclusion([]Trytes{"B9OETFYOEIUYEVB9WWCMGIHIJLFU9IJOBYYGSTZBLFBZLGZRKBIREYTIPPFGC9SPEOJFIYFRRSPX99999"})
+		resp, err = api.GetLatestInclusion([]trinary.Trytes{"B9OETFYOEIUYEVB9WWCMGIHIJLFU9IJOBYYGSTZBLFBZLGZRKBIREYTIPPFGC9SPEOJFIYFRRSPX99999"})
 		if err == nil && len(resp) > 0 {
 			break
 		}
@@ -258,7 +262,7 @@ func TestAPICheckConsistency(t *testing.T) {
 	var server = RandomNode()
 	api := NewAPI(server, nil)
 
-	resp, err := api.CheckConsistency([]Trytes{"NLNRYUTSLRQONSQEXBAJI9AIOJOEEJDOFJTETPFMB9AEEPUDIXXOTKXG9BYALEXOMSUYJEJSCZTY99999"})
+	resp, err := api.CheckConsistency([]trinary.Trytes{"NLNRYUTSLRQONSQEXBAJI9AIOJOEEJDOFJTETPFMB9AEEPUDIXXOTKXG9BYALEXOMSUYJEJSCZTY99999"})
 
 	switch {
 	case err != nil:
