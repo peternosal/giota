@@ -27,8 +27,8 @@ package bundle
 import (
 	"github.com/iotaledger/giota/pow"
 	"github.com/iotaledger/giota/signing"
+	"github.com/iotaledger/giota/transaction"
 	"github.com/iotaledger/giota/trinary"
-	"github.com/iotaledger/giota/tx"
 	"math"
 	"time"
 )
@@ -48,7 +48,7 @@ type Transfer struct {
 	Tag     trinary.Trytes
 }
 
-const SignatureMessageFragmentSizeTrinary = tx.SignatureMessageFragmentTrinarySize / 3
+const SignatureMessageFragmentSizeTrinary = transaction.SignatureMessageFragmentTrinarySize / 3
 
 func (trs Transfers) AddOutputs() (Bundle, []trinary.Trytes, int64) {
 	var (
@@ -112,20 +112,20 @@ func (a *AddressInfo) Key() (trinary.Trytes, error) {
 	return signing.NewKey(a.Seed, a.Index, a.Security)
 }
 
-func DoPoW(trunkTx, branchTx trinary.Trytes, trytes []tx.Tx, mwm int64, pow pow.PowFunc) error {
+func DoPoW(trunkTx, branchTx trinary.Trytes, trytes []transaction.Transaction, mwm int64, pow pow.PowFunc) error {
 	var prev trinary.Trytes
 	var err error
 	for i := len(trytes) - 1; i >= 0; i-- {
 		switch {
 		case i == len(trytes)-1:
-			trytes[i].TrunkTx = trunkTx
-			trytes[i].BranchTx = branchTx
+			trytes[i].TrunkTransaction = trunkTx
+			trytes[i].BranchTransaction = branchTx
 		default:
-			trytes[i].TrunkTx = prev
-			trytes[i].BranchTx = trunkTx
+			trytes[i].TrunkTransaction = prev
+			trytes[i].BranchTransaction = trunkTx
 		}
 
-		timestamp := trinary.Int2Trits(time.Now().UnixNano()/1000000, tx.TimestampTrinarySize).Trytes()
+		timestamp := trinary.Int2Trits(time.Now().UnixNano()/1000000, transaction.TimestampTrinarySize).Trytes()
 		trytes[i].AttachmentTimestamp = timestamp
 		trytes[i].AttachmentTimestampLowerBound = ""
 		trytes[i].AttachmentTimestampUpperBound = MaxTimestampTrytes

@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package tx
+package transaction
 
 import (
 	"encoding/json"
@@ -38,8 +38,8 @@ const (
 	DefaultMinWeightMagnitude = 14
 )
 
-// Tx contains all info needed for an iota transaction
-type Tx struct {
+// Transaction contains all info needed for an iota transaction
+type Transaction struct {
 	SignatureMessageFragment      trinary.Trytes
 	Address                       signing.Address
 	Value                         int64 `json:",string"`
@@ -48,8 +48,8 @@ type Tx struct {
 	CurrentIndex                  int64     `json:",string"`
 	LastIndex                     int64     `json:",string"`
 	Bundle                        trinary.Trytes
-	TrunkTx                       trinary.Trytes
-	BranchTx                      trinary.Trytes
+	TrunkTransaction              trinary.Trytes
+	BranchTransaction             trinary.Trytes
 	Tag                           trinary.Trytes
 	AttachmentTimestamp           trinary.Trytes
 	AttachmentTimestampLowerBound trinary.Trytes
@@ -59,9 +59,9 @@ type Tx struct {
 
 // errors for tx
 var (
-	ErrInvalidTxType = errors.New("invalid transaction type")
-	ErrInvalidTxHash = errors.New("invalid transaction hash")
-	ErrInvalidTx     = errors.New("malformed transaction")
+	ErrInvalidTransactionType = errors.New("invalid transaction type")
+	ErrInvalidTransactionHash = errors.New("invalid transaction hash")
+	ErrInvalidTransaction     = errors.New("malformed transaction")
 )
 
 // Trinary sizes and offsets of a transaction
@@ -82,11 +82,11 @@ const (
 	LastIndexTrinarySize                  = 27
 	BundleTrinaryOffset                   = LastIndexTrinaryOffset + LastIndexTrinarySize
 	BundleTrinarySize                     = 243
-	TrunkTxTrinaryOffset                  = BundleTrinaryOffset + BundleTrinarySize
-	TrunkTxTrinarySize                    = 243
-	BranchTxTrinaryOffset                 = TrunkTxTrinaryOffset + TrunkTxTrinarySize
-	BranchTxTrinarySize                   = 243
-	TagTrinaryOffset                      = BranchTxTrinaryOffset + BranchTxTrinarySize
+	TrunkTransactionTrinaryOffset         = BundleTrinaryOffset + BundleTrinarySize
+	TrunkTransactionTrinarySize           = 243
+	BranchTransactionTrinaryOffset        = TrunkTransactionTrinaryOffset + TrunkTransactionTrinarySize
+	BranchTransactionTrinarySize          = 243
+	TagTrinaryOffset                      = BranchTransactionTrinaryOffset + BranchTransactionTrinarySize
 	TagTrinarySize                        = 81
 	AttachmentTimestampTrinaryOffset      = TagTrinaryOffset + TagTrinarySize
 	AttachmentTimestampTrinarySize        = 27
@@ -101,16 +101,16 @@ const (
 	TransactionTrinarySize = SignatureMessageFragmentTrinarySize + AddressTrinarySize +
 		ValueTrinarySize + ObsoleteTagTrinarySize + TimestampTrinarySize +
 		CurrentIndexTrinarySize + LastIndexTrinarySize + BundleTrinarySize +
-		TrunkTxTrinarySize + BranchTxTrinarySize +
+		TrunkTransactionTrinarySize + BranchTransactionTrinarySize +
 		TagTrinarySize + AttachmentTimestampTrinarySize +
 		AttachmentTimestampLowerBoundTrinarySize + AttachmentTimestampUpperBoundTrinarySize +
 		NonceTrinarySize
 )
 
-// NewTx makes a new transaction from the trytes
-func NewTx(trytes trinary.Trytes) (*Tx, error) {
-	t := Tx{}
-	if err := checkTx(trytes); err != nil {
+// NewTransaction makes a new transaction from the trytes
+func NewTransaction(trytes trinary.Trytes) (*Transaction, error) {
+	t := Transaction{}
+	if err := checkTransaction(trytes); err != nil {
 		return nil, err
 	}
 
@@ -122,7 +122,7 @@ func NewTx(trytes trinary.Trytes) (*Tx, error) {
 	return &t, nil
 }
 
-func checkTx(trytes trinary.Trytes) error {
+func checkTransaction(trytes trinary.Trytes) error {
 	err := trytes.IsValid()
 
 	switch {
@@ -137,33 +137,33 @@ func checkTx(trytes trinary.Trytes) error {
 	}
 }
 
-func (t *Tx) parser(trits trinary.Trits) error {
+func (t *Transaction) parser(trits trinary.Trits) error {
 	var err error
 	t.SignatureMessageFragment = trits[SignatureMessageFragmentTrinaryOffset:SignatureMessageFragmentTrinarySize].Trytes()
-	t.Address, err = signing.ToAddress(trits[AddressTrinaryOffset:AddressTrinaryOffset+AddressTrinarySize].Trytes())
+	t.Address, err = signing.ToAddress(trits[AddressTrinaryOffset : AddressTrinaryOffset+AddressTrinarySize].Trytes())
 	if err != nil {
 		return err
 	}
-	t.Value = trits[ValueTrinaryOffset:ValueTrinaryOffset+ValueTrinarySize].Int()
-	t.ObsoleteTag = trits[ObsoleteTagTrinaryOffset:ObsoleteTagTrinaryOffset+ObsoleteTagTrinarySize].Trytes()
-	timestamp := trits[TimestampTrinaryOffset:TimestampTrinaryOffset+TimestampTrinarySize].Int()
+	t.Value = trits[ValueTrinaryOffset : ValueTrinaryOffset+ValueTrinarySize].Int()
+	t.ObsoleteTag = trits[ObsoleteTagTrinaryOffset : ObsoleteTagTrinaryOffset+ObsoleteTagTrinarySize].Trytes()
+	timestamp := trits[TimestampTrinaryOffset : TimestampTrinaryOffset+TimestampTrinarySize].Int()
 	t.Timestamp = time.Unix(timestamp, 0)
-	t.CurrentIndex = trits[CurrentIndexTrinaryOffset:CurrentIndexTrinaryOffset+CurrentIndexTrinarySize].Int()
-	t.LastIndex = trits[LastIndexTrinaryOffset:LastIndexTrinaryOffset+LastIndexTrinarySize].Int()
-	t.Bundle = trits[BundleTrinaryOffset:BundleTrinaryOffset+BundleTrinarySize].Trytes()
-	t.TrunkTx = trits[TrunkTxTrinaryOffset:TrunkTxTrinaryOffset+TrunkTxTrinarySize].Trytes()
-	t.BranchTx = trits[BranchTxTrinaryOffset:BranchTxTrinaryOffset+BranchTxTrinarySize].Trytes()
-	t.Tag = trits[TagTrinaryOffset:TagTrinaryOffset+TagTrinarySize].Trytes()
-	t.AttachmentTimestamp = trits[AttachmentTimestampTrinaryOffset:AttachmentTimestampTrinaryOffset+AttachmentTimestampTrinarySize].Trytes()
-	t.AttachmentTimestampLowerBound = trits[AttachmentTimestampLowerBoundTrinaryOffset:AttachmentTimestampLowerBoundTrinaryOffset+AttachmentTimestampLowerBoundTrinarySize].Trytes()
-	t.AttachmentTimestampUpperBound = trits[AttachmentTimestampUpperBoundTrinaryOffset:AttachmentTimestampUpperBoundTrinaryOffset+AttachmentTimestampUpperBoundTrinarySize].Trytes()
-	t.Nonce = trits[NonceTrinaryOffset:NonceTrinaryOffset+NonceTrinarySize].Trytes()
+	t.CurrentIndex = trits[CurrentIndexTrinaryOffset : CurrentIndexTrinaryOffset+CurrentIndexTrinarySize].Int()
+	t.LastIndex = trits[LastIndexTrinaryOffset : LastIndexTrinaryOffset+LastIndexTrinarySize].Int()
+	t.Bundle = trits[BundleTrinaryOffset : BundleTrinaryOffset+BundleTrinarySize].Trytes()
+	t.TrunkTransaction = trits[TrunkTransactionTrinaryOffset : TrunkTransactionTrinaryOffset+TrunkTransactionTrinarySize].Trytes()
+	t.BranchTransaction = trits[BranchTransactionTrinaryOffset : BranchTransactionTrinaryOffset+BranchTransactionTrinarySize].Trytes()
+	t.Tag = trits[TagTrinaryOffset : TagTrinaryOffset+TagTrinarySize].Trytes()
+	t.AttachmentTimestamp = trits[AttachmentTimestampTrinaryOffset : AttachmentTimestampTrinaryOffset+AttachmentTimestampTrinarySize].Trytes()
+	t.AttachmentTimestampLowerBound = trits[AttachmentTimestampLowerBoundTrinaryOffset : AttachmentTimestampLowerBoundTrinaryOffset+AttachmentTimestampLowerBoundTrinarySize].Trytes()
+	t.AttachmentTimestampUpperBound = trits[AttachmentTimestampUpperBoundTrinaryOffset : AttachmentTimestampUpperBoundTrinaryOffset+AttachmentTimestampUpperBoundTrinarySize].Trytes()
+	t.Nonce = trits[NonceTrinaryOffset : NonceTrinaryOffset+NonceTrinarySize].Trytes()
 
 	return nil
 }
 
 // Trytes converts the transaction to Trytes.
-func (t *Tx) Trytes() trinary.Trytes {
+func (t *Transaction) Trytes() trinary.Trytes {
 	tr := make(trinary.Trits, TransactionTrinarySize)
 	copy(tr, t.SignatureMessageFragment.Trits())
 	copy(tr[AddressTrinaryOffset:], trinary.Trytes(t.Address).Trits())
@@ -173,8 +173,8 @@ func (t *Tx) Trytes() trinary.Trytes {
 	copy(tr[CurrentIndexTrinaryOffset:], trinary.Int2Trits(t.CurrentIndex, CurrentIndexTrinarySize))
 	copy(tr[LastIndexTrinaryOffset:], trinary.Int2Trits(t.LastIndex, LastIndexTrinarySize))
 	copy(tr[BundleTrinaryOffset:], t.Bundle.Trits())
-	copy(tr[TrunkTxTrinaryOffset:], t.TrunkTx.Trits())
-	copy(tr[BranchTxTrinaryOffset:], t.BranchTx.Trits())
+	copy(tr[TrunkTransactionTrinaryOffset:], t.TrunkTransaction.Trits())
+	copy(tr[BranchTransactionTrinaryOffset:], t.BranchTransaction.Trits())
 	copy(tr[TagTrinaryOffset:], t.Tag.Trits())
 	copy(tr[AttachmentTimestampTrinaryOffset:], t.AttachmentTimestamp.Trits())
 	copy(tr[AttachmentTimestampLowerBoundTrinaryOffset:], t.AttachmentTimestampLowerBound.Trits())
@@ -186,17 +186,17 @@ func (t *Tx) Trytes() trinary.Trytes {
 // HasValidNonce checks if the transaction has the valid MinWeightMagnitude.
 // In order to check the MWM we count trailing 0's of the curlp hash of a
 // transaction.
-func (t *Tx) HasValidNonce(mwm int64) bool {
+func (t *Transaction) HasValidNonce(mwm int64) bool {
 	return t.Hash().Trits().TrailingZeros() >= mwm
 }
 
 // Hash returns the hash of the transaction.
-func (t *Tx) Hash() trinary.Trytes {
+func (t *Transaction) Hash() trinary.Trytes {
 	return curl.Hash(t.Trytes())
 }
 
 // UnmarshalJSON makes transaction struct from json.
-func (t *Tx) UnmarshalJSON(b []byte) error {
+func (t *Transaction) UnmarshalJSON(b []byte) error {
 	var s trinary.Trytes
 	var err error
 
@@ -204,7 +204,7 @@ func (t *Tx) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	if err = checkTx(s); err != nil {
+	if err = checkTransaction(s); err != nil {
 		return err
 	}
 
@@ -212,12 +212,12 @@ func (t *Tx) UnmarshalJSON(b []byte) error {
 }
 
 // MarshalJSON makes trytes ([]byte) from a transaction.
-func (t *Tx) MarshalJSON() ([]byte, error) {
+func (t *Transaction) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + t.Trytes() + `"`), nil
 }
 
 // Checks if given transaction object is tail transaction.
 // A tail transaction is one with currentIndex=0.
-func (t *Tx) IsTail() bool {
+func (t *Transaction) IsTail() bool {
 	return t.CurrentIndex == 0
 }

@@ -26,6 +26,8 @@ SOFTWARE.
 package giota
 
 import (
+	"github.com/iotaledger/giota/bundle"
+	"github.com/iotaledger/giota/pow"
 	"github.com/iotaledger/giota/signing"
 	"github.com/iotaledger/giota/trinary"
 	"testing"
@@ -215,7 +217,7 @@ func TestAPIGetTransactionsToApprove(t *testing.T) {
 		var server = RandomNode()
 		api := NewAPI(server, nil)
 
-		resp, err = api.GetTransactionsToApprove(3, 5, "")
+		resp, err = api.GetTransactionsToApprove(3, "")
 		if err == nil {
 			break
 		}
@@ -269,6 +271,117 @@ func TestAPICheckConsistency(t *testing.T) {
 		t.Errorf("CheckConsistency() expected err to be nil but got '%v'", err)
 	case resp.State != true:
 		t.Error("CheckConsistency() expected true, got false")
+	}
+}
+
+var (
+	seed             trinary.Trytes
+	skipTransferTest = false
+)
+
+func TestTransfer1(t *testing.T) {
+	if skipTransferTest {
+		t.Skip("transfer test skipped because a valid $TRANSFER_TEST_SEED was not specified")
+	}
+
+	var (
+		err  error
+		adr  signing.Address
+		adrs []signing.Address
+	)
+
+	for i := 0; i < 5; i++ {
+		api := NewAPI(RandomNode(), nil)
+		adr, adrs, err = api.GetUsedAddress(seed, 2)
+		if err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Log(adr, adrs)
+	if len(adrs) < 1 {
+		t.Error("GetUsedAddress is incorrect")
+	}
+
+	var bal Balances
+	for i := 0; i < 5; i++ {
+		api := NewAPI(RandomNode(), nil)
+		bal, err = api.GetInputs(seed, 0, 10, 1000, 2)
+		if err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Log(bal)
+	if len(bal) < 1 {
+		t.Error("GetInputs is incorrect")
+	}
+}
+
+// nolint: gocyclo
+func TestTransfer2(t *testing.T) {
+	if skipTransferTest {
+		t.Skip("transfer test skipped because a valid $TRANSFER_TEST_SEED was not specified")
+	}
+
+	var err error
+	trs := []bundle.Transfer{
+		{
+			Address: "KTXFP9XOVMVWIXEWMOISJHMQEXMYMZCUGEQNKGUNVRPUDPRX9IR9LBASIARWNFXXESPITSLYAQMLCLVTL9QTIWOWTY",
+			Value:   20,
+			Tag:     "MOUDAMEPO",
+		},
+	}
+
+	var bdl bundle.Bundle
+	for i := 0; i < 5; i++ {
+		api := NewAPI(RandomNode(), nil)
+		bdl, err = api.PrepareTransfers(seed, trs, nil, "", 2)
+		if err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(bdl) < 3 {
+		for _, tx := range bdl {
+			t.Log(tx.Trytes())
+		}
+		t.Fatal("PrepareTransfers is incorrect len(bdl)=", len(bdl))
+	}
+
+	if err = bdl.IsValid(); err != nil {
+		t.Error(err)
+	}
+
+	name, pow := pow.GetBestPoW()
+	t.Log("using PoW: ", name)
+
+	for i := 0; i < 5; i++ {
+		api := NewAPI(RandomNode(), nil)
+		bdl, err = api.Send(seed, 2, 3, trs, 18, pow)
+		if err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	for _, tx := range bdl {
+		t.Log(tx.Trytes())
 	}
 }
 

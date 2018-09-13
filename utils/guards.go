@@ -3,8 +3,9 @@ package utils
 import (
 	"github.com/iotaledger/giota/curl"
 	"github.com/iotaledger/giota/signing"
+	"github.com/iotaledger/giota/transaction"
 	"github.com/iotaledger/giota/trinary"
-	"github.com/iotaledger/giota/tx"
+
 	"regexp"
 )
 
@@ -38,22 +39,22 @@ var IsNineTrytes = IsEmptyTrytes
 
 // Checks if input is correct hash (81 trytes)
 func IsHash(trytes trinary.Trytes) bool {
-	return IsTrytesOfExactLength(trytes, curl.HashSizeTrinary) || IsTrytesOfExactLength(trytes, curl.HashSizeTrinary+signing.ChecksumSize)
+	return IsTrytesOfExactLength(trytes, curl.HashSizeTrytes) || IsTrytesOfExactLength(trytes, curl.HashSizeTrytes+signing.ChecksumSize)
 }
 
 // Checks that input is valid tag trytes.
 func IsTag(trytes trinary.Trytes) bool {
-	return IsTrytesOfExactLength(trytes, tx.TagTrinarySize/3)
+	return IsTrytesOfExactLength(trytes, transaction.TagTrinarySize/3)
 }
 
 // Checks if input is correct transaction hash (81 trytes)
 func IsTxHash(trytes trinary.Trytes) bool {
-	return IsTrytesOfExactLength(trytes, curl.HashSizeTrinary)
+	return IsTrytesOfExactLength(trytes, curl.HashSizeTrytes)
 }
 
 // Checks if input is correct transaction hash (81 trytes) with given MWM
 func IsTxHashWithMWM(trytes trinary.Trytes, mwm uint) bool {
-	correctLength := IsTrytesOfExactLength(trytes, curl.HashSizeTrinary)
+	correctLength := IsTrytesOfExactLength(trytes, curl.HashSizeTrytes)
 	if !correctLength {
 		return false
 	}
@@ -69,17 +70,17 @@ func IsTxHashWithMWM(trytes trinary.Trytes, mwm uint) bool {
 
 // Checks if input is correct transaction trytes (2673 trytes)
 func IsTransactionTrytes(trytes trinary.Trytes) bool {
-	return IsTrytesOfExactLength(trytes, tx.TransactionTrinarySize/3)
+	return IsTrytesOfExactLength(trytes, transaction.TransactionTrinarySize/3)
 }
 
 // Checks if input is correct transaction trytes (2673 trytes) with given MWM
 func IsTransactionTrytesWithMWM(trytes trinary.Trytes, mwm uint) (bool, error) {
-	correctLength := IsTrytesOfExactLength(trytes, tx.TransactionTrinarySize/3)
+	correctLength := IsTrytesOfExactLength(trytes, transaction.TransactionTrinarySize/3)
 	if !correctLength {
 		return false, nil
 	}
 
-	tx, err := tx.NewTx(trytes)
+	tx, err := transaction.NewTransaction(trytes)
 	if err != nil {
 		return false, err
 	}
@@ -94,5 +95,5 @@ func IsTransactionTrytesWithMWM(trytes trinary.Trytes, mwm uint) (bool, error) {
 
 // Checks if input is valid attached transaction trytes. For attached transactions last 241 trytes are non-zero.
 func IsAttachedTrytes(trytes trinary.Trytes) bool {
-	return IsTrytesOfExactLength(trytes, tx.TransactionTrinarySize/3) && !IsEmptyTrytes(trytes[len(trytes)-3*curl.HashSizeTrinary:])
+	return IsTrytesOfExactLength(trytes, transaction.TransactionTrinarySize/3) && !IsEmptyTrytes(trytes[len(trytes)-3*curl.HashSizeTrytes:])
 }

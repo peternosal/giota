@@ -207,7 +207,7 @@ func TestConvert(t *testing.T) {
 	}
 }
 
-func TestNormalize(t *testing.T) {
+func TestTrytes_Normalize(t *testing.T) {
 	var bundleHash Trytes = "DEXRPLKGBROUQMKCLMRPG9HFKCACDZ9AB9HOJQWERTYWERJNOYLW9PKLOGDUPC9DLGSUH9UHSKJOASJRU"
 	no := []int8{-13, -13, -13, -13, -11, 12, 11, 7, 2, -9, -12, -6, -10, 13, 11, 3, 12, 13, -9, -11, 7, 0, 8, 6,
 		11, 3, 1, 13, 13, 13, 7, 1, 2, 0, 8, -12, 10, -10, -4, 5, -9, -7, -2, -4, 5, -9, 10, -13, -12, -2, 12, -4,
@@ -218,5 +218,62 @@ func TestNormalize(t *testing.T) {
 		if no[i] != norm[i] {
 			t.Fatal("normalization is incorrect.")
 		}
+	}
+}
+
+func TestASCIIToTrytes(t *testing.T) {
+	const ascii = "IOTA"
+	const utf8 = "Γιώτα"
+	const expected = "SBYBCCKB"
+
+	trytes, err := ASCIIToTrytes(ascii)
+	if err != nil {
+		t.Fatalf("didn't expect an error for valid ascii input but got error: %v\n", err)
+	}
+
+	for i := range trytes {
+		if trytes[i] != expected[i] {
+			t.Fatalf("char at %d is %v but expected %v\n", i, trytes[i], expected[i])
+		}
+	}
+
+	if _, err := ASCIIToTrytes(utf8); err == nil {
+		t.Fatalf("expected an error for the invalid ascii input of %v", utf8)
+	}
+}
+
+
+func TestTrytes_ToASCII(t *testing.T) {
+	const trytes = Trytes("SBYBCCKB")
+	const expected = "IOTA"
+
+	asciiVal, err := trytes.ToASCII()
+	if err != nil {
+		t.Fatalf("didn't expect an error for valid tryte values for ascii conversion but got error: %v\n", err)
+	}
+
+	if asciiVal != expected {
+		t.Fatalf("got converted ascii value %s but expected %s\n", asciiVal, expected)
+	}
+
+	const invalidTrytes = Trytes("AAAfasds")
+	const trytesWithOddLength = Trytes("AAA")
+
+	_, err = invalidTrytes.ToASCII()
+	if err == nil {
+		t.Fatalf("expected an error for non convertible tryte value %s", invalidTrytes)
+	}
+
+	if err != ErrInvalidTryteCharacter {
+		t.Fatalf("expected invalid tryte char error but got: %v", err)
+	}
+
+	_, err = trytesWithOddLength.ToASCII();
+	if err == nil {
+		t.Fatalf("expected an error for non convertible tryte value %s", trytesWithOddLength)
+	}
+
+	if err != ErrInvalidLengthForToASCIIConversion {
+		t.Fatalf("expected invalid trytes length error but got: %v", err)
 	}
 }

@@ -33,8 +33,12 @@ import (
 	keccak "golang.org/x/crypto/sha3"
 )
 
-// Kerl ...
-// TODO: find out the difference between this anc Curl and document
+var (
+	ErrInvalidInputLength      = fmt.Errorf("output lengths must be of %d", trinary.TritHashLength)
+	ErrInvalidInputTritsLength = fmt.Errorf("input trit slice must be a multiple of %d", trinary.TritHashLength)
+)
+
+// Kerl is a to trinary aligned version of keccak
 type Kerl struct {
 	s hash.Hash
 }
@@ -47,11 +51,10 @@ func NewKerl() *Kerl {
 	return k
 }
 
-// Squeeze out `length` trits. Length has to be a multiple of TritHashLength.
+// Squeeze out `length` trits. Length has to be a multiple of trinary.TritHashLength.
 func (k *Kerl) Squeeze(length int) (trinary.Trits, error) {
 	if length%curl.HashSize != 0 {
-		return nil, fmt.Errorf("Squeeze is only defined for output lengths slices that are a multiple of %d",
-			trinary.TritHashLength)
+		return nil, ErrInvalidInputLength
 	}
 
 	out := make(trinary.Trits, length)
@@ -67,17 +70,19 @@ func (k *Kerl) Squeeze(length int) (trinary.Trits, error) {
 		for i, e := range h {
 			h[i] = ^e
 		}
-		k.s.Write(h)
+		if _, err := k.s.Write(h); err != nil {
+			return nil, err
+		}
 	}
 
 	return out, nil
 }
 
 // Absorb fills the internal state of the sponge with the given trits.
-// This is only defined for Trit slices that are a multiple of TritHashLength long.
+// This is only defined for Trit slices that are a multiple of trinary.TritHashLength long.
 func (k *Kerl) Absorb(in trinary.Trits) error {
 	if len(in)%curl.HashSize != 0 {
-		return fmt.Errorf("Absorb() is only defined for Trit slices that are a multiple of %d long", trinary.TritHashLength)
+		return ErrInvalidInputTritsLength
 	}
 
 	for i := 1; i <= len(in)/curl.HashSize; i++ {
@@ -86,7 +91,9 @@ func (k *Kerl) Absorb(in trinary.Trits) error {
 		if err != nil {
 			return err
 		}
-		k.s.Write(b)
+		if _, err := k.s.Write(b); err != nil {
+			return err
+		}
 	}
 
 	return nil

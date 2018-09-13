@@ -82,8 +82,12 @@ func TestBundle(t *testing.T) {
 			bs.Add(1, tx.addr, tx.value, parsedTime, "")
 		}
 
-		if bs.Hash() != tt.hash {
-			t.Errorf("%s: hash of bundles is illegal: %s", tt.name, bs.Hash())
+		bundleHash, err := bs.Hash()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bundleHash != tt.hash {
+			t.Errorf("%s: hash of bundles is illegal: %s", tt.name, bundleHash)
 		}
 
 		bs.Finalize([]trinary.Trytes{})

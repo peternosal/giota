@@ -30,10 +30,10 @@ import (
 
 // constants for Sizes.
 const (
-	HashSize        = 243
-	HashSizeTrinary = 81
-	StateSize       = HashSize * 3
-	NumberOfRounds  = 81
+	HashSize       = 243
+	HashSizeTrytes = 81
+	StateSize      = HashSize * 3
+	NumberOfRounds = 81
 )
 
 var (

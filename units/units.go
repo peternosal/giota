@@ -7,13 +7,13 @@ import (
 
 type Unit float64
 
-var (
+const (
 	I  = Unit(1)
-	Ki = Unit(math.Pow10(3))
-	Mi = Unit(math.Pow10(6))
-	Gi = Unit(math.Pow10(9))
-	Ti = Unit(math.Pow10(12))
-	Pi = Unit(math.Pow10(15))
+	Ki = Unit(1000)
+	Mi = Unit(1000000)
+	Gi = Unit(1000000000)
+	Ti = Unit(1000000000000)
+	Pi = Unit(1000000000000000)
 )
 
 func ConvertUnits(val float64, from Unit, to Unit) float64 {

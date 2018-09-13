@@ -302,8 +302,8 @@ import "C"
 import (
 	"errors"
 	"github.com/iotaledger/giota/curl"
+	"github.com/iotaledger/giota/transaction"
 	"github.com/iotaledger/giota/trinary"
-	"github.com/iotaledger/giota/tx"
 	"sync"
 	"unsafe"
 )
@@ -329,9 +329,9 @@ func PowC128(trytes trinary.Trytes, mwm int) (trinary.Trytes, error) {
 	C.stopC128 = 0
 	countC128 = 0
 	c := curl.NewCurl()
-	c.Absorb(trytes[:(tx.TransactionTrinarySize-curl.HashSize)/3])
+	c.Absorb(trytes[:(transaction.TransactionTrinarySize-curl.HashSize)/3])
 	tr := trytes.Trits()
-	copy(c.State, tr[tx.TransactionTrinarySize-curl.HashSize:])
+	copy(c.State, tr[transaction.TransactionTrinarySize-curl.HashSize:])
 
 	var (
 		result trinary.Trytes
@@ -342,7 +342,7 @@ func PowC128(trytes trinary.Trytes, mwm int) (trinary.Trytes, error) {
 	for n := 0; n < PowProcs; n++ {
 		wg.Add(1)
 		go func(n int) {
-			nonce := make(trinary.Trits, tx.NonceTrinarySize)
+			nonce := make(trinary.Trits, transaction.NonceTrinarySize)
 
 			// nolint: gas
 			r := C.pworkC128((*C.schar)(unsafe.Pointer(&c.State[0])), C.int(mwm), (*C.schar)(unsafe.Pointer(&nonce[0])), C.int(n))

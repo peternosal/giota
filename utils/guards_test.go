@@ -83,7 +83,7 @@ var txHashesMWM14 = []string{
 func TestIsTxHashWithMWM(t *testing.T) {
 	for _, txHash := range txHashesMWM14 {
 		if !IsTxHashWithMWM(trinary.Trytes(txHash), 14) {
-			t.Fatalf("expected a MWM of 14 to be correct for tx hash %s\n", txHash)
+			t.Fatalf("expected a MWM of 14 to be correct for transaction hash %s\n", txHash)
 		}
 	}
 }
@@ -101,7 +101,7 @@ func TestIsTransactionTrytesWithMWM(t *testing.T) {
 			t.Fatalf("didn't expect error %v from test values\n", err)
 		}
 		if !ok {
-			t.Fatalf("expected a MWM of 14 to be correct for tx trytes %s\n", txTrytes)
+			t.Fatalf("expected a MWM of 14 to be correct for transaction trytes %s\n", txTrytes)
 		}
 	}
 }
@@ -109,7 +109,7 @@ func TestIsTransactionTrytesWithMWM(t *testing.T) {
 func TestIsAttachedTrytes(t *testing.T) {
 	for _, txTrytes := range txTrytesMWM14 {
 		if !IsAttachedTrytes(txTrytes) {
-			t.Fatalf("expected tx to count as attached for tx trytes %s\n", txTrytes)
+			t.Fatalf("expected transaction to count as attached for transaction trytes %s\n", txTrytes)
 		}
 	}
 }

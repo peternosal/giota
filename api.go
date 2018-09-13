@@ -35,8 +35,9 @@ import (
 	"github.com/iotaledger/giota/curl"
 	"github.com/iotaledger/giota/pow"
 	"github.com/iotaledger/giota/signing"
+	"github.com/iotaledger/giota/transaction"
 	"github.com/iotaledger/giota/trinary"
-	"github.com/iotaledger/giota/tx"
+
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -381,8 +382,8 @@ type GetTrytesRequest struct {
 
 // GetTrytesResponse is for GetTrytes API response.
 type GetTrytesResponse struct {
-	Duration int64   `json:"duration"`
-	Trytes   []tx.Tx `json:"trytes"`
+	Duration int64                     `json:"duration"`
+	Trytes   []transaction.Transaction `json:"trytes"`
 }
 
 // GetTrytes calls GetTrytes API.
@@ -555,17 +556,17 @@ func (api *API) GetTransactionsToApprove(depth int, reference trinary.Trytes) (*
 
 // AttachToTangleRequest is for AttachToTangle API request.
 type AttachToTangleRequest struct {
-	Command            string         `json:"command"`
-	TrunkTransaction   trinary.Trytes `json:"trunkTransaction"`
-	BranchTransaction  trinary.Trytes `json:"branchTransaction"`
-	MinWeightMagnitude int64          `json:"minWeightMagnitude"`
-	Trytes             []tx.Tx        `json:"trytes"`
+	Command            string                    `json:"command"`
+	TrunkTransaction   trinary.Trytes            `json:"trunkTransaction"`
+	BranchTransaction  trinary.Trytes            `json:"branchTransaction"`
+	MinWeightMagnitude int64                     `json:"minWeightMagnitude"`
+	Trytes             []transaction.Transaction `json:"trytes"`
 }
 
 // AttachToTangleResponse is for AttachToTangle API response.
 type AttachToTangleResponse struct {
-	Duration int64   `json:"duration"`
-	Trytes   []tx.Tx `json:"trytes"`
+	Duration int64                     `json:"duration"`
+	Trytes   []transaction.Transaction `json:"trytes"`
 }
 
 // AttachToTangle calls AttachToTangle API.
@@ -636,7 +637,7 @@ func (api *API) BroadcastBundle(tailTransactionHash trinary.Trytes) error {
 	bundle[0] = tx
 
 	for i := 1; i < txsInBundle; i++ {
-		getTrytesRes, err = api.GetTrytes(tx.TrunkTx)
+		getTrytesRes, err = api.GetTrytes(tx.TrunkTransaction)
 		if err != nil {
 			return err
 		}
@@ -650,15 +651,15 @@ func (api *API) BroadcastBundle(tailTransactionHash trinary.Trytes) error {
 
 // BroadcastTransactionsRequest is for BroadcastTransactions API request.
 type BroadcastTransactionsRequest struct {
-	Command string  `json:"command"`
-	Trytes  []tx.Tx `json:"trytes"`
+	Command string                    `json:"command"`
+	Trytes  []transaction.Transaction `json:"trytes"`
 }
 
 // BroadcastTransactions calls BroadcastTransactions API.
-func (api *API) BroadcastTransactions(trytes []tx.Tx) error {
+func (api *API) BroadcastTransactions(trytes []transaction.Transaction) error {
 	err := api.do(&struct {
-		Command string  `json:"command"`
-		Trytes  []tx.Tx `json:"trytes"`
+		Command string                    `json:"command"`
+		Trytes  []transaction.Transaction `json:"trytes"`
 	}{
 		"broadcastTransactions",
 		trytes,
@@ -669,15 +670,15 @@ func (api *API) BroadcastTransactions(trytes []tx.Tx) error {
 
 // StoreTransactionsRequest is for StoreTransactions API request.
 type StoreTransactionsRequest struct {
-	Command string  `json:"command"`
-	Trytes  []tx.Tx `json:"trytes"`
+	Command string                    `json:"command"`
+	Trytes  []transaction.Transaction `json:"trytes"`
 }
 
 // StoreTransactions calls StoreTransactions API.
-func (api *API) StoreTransactions(trytes []tx.Tx) error {
+func (api *API) StoreTransactions(trytes []transaction.Transaction) error {
 	err := api.do(&struct {
-		Command string  `json:"command"`
-		Trytes  []tx.Tx `json:"trytes"`
+		Command string                    `json:"command"`
+		Trytes  []transaction.Transaction `json:"trytes"`
 	}{
 		"storeTransactions",
 		trytes,
@@ -892,7 +893,7 @@ func (api *API) AddRemainder(in Balances, bundle *bundle.Bundle, security int, r
 }
 
 // SendTrytes does attachToTangle and finally, it broadcasts and stores the transactions.
-func (api *API) SendTrytes(depth int, trytes []tx.Tx, mwm int64, pow pow.PowFunc) error {
+func (api *API) SendTrytes(depth int, trytes []transaction.Transaction, mwm int64, pow pow.PowFunc) error {
 	tra, err := api.GetTransactionsToApprove(depth, "")
 	if err != nil {
 		return err
@@ -931,7 +932,7 @@ func (api *API) SendTrytes(depth int, trytes []tx.Tx, mwm int64, pow pow.PowFunc
 }
 
 // Promote sends a transaction using tail as reference (promotes the tail transaction)
-func (api *API) Promote(tail trinary.Trytes, depth int, trytes []tx.Tx, mwm int64, pow pow.PowFunc) error {
+func (api *API) Promote(tail trinary.Trytes, depth int, trytes []transaction.Transaction, mwm int64, pow pow.PowFunc) error {
 	if len(trytes) == 0 {
 		return errors.New("empty transfer")
 	}
@@ -987,6 +988,6 @@ func (api *API) Send(seed trinary.Trytes, security int, depth int, transfers bun
 		return nil, err
 	}
 
-	err = api.SendTrytes(depth, []tx.Tx(bd), mwm, pow)
+	err = api.SendTrytes(depth, []transaction.Transaction(bd), mwm, pow)
 	return bd, err
 }

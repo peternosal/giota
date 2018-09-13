@@ -22,7 +22,7 @@ var (
 )
 
 // NewAddress generates a new address from the given seed without the checksum
-func NewAddress(seed trinary.Trytes, index, security int) (Address, error) {
+func NewAddress(seed trinary.Trytes, index uint, security int) (Address, error) {
 	k, err := NewKeyTrits(seed, index, security)
 	if err != nil {
 		return "", err
@@ -42,11 +42,12 @@ func NewAddress(seed trinary.Trytes, index, security int) (Address, error) {
 }
 
 // NewAddresses generates N new addresses from the given seed without a checksum
-func NewAddresses(seed trinary.Trytes, start, count, security int) ([]Address, error) {
+func NewAddresses(seed trinary.Trytes, start, count uint, security int) ([]Address, error) {
 	as := make([]Address, count)
 
 	var err error
-	for i := 0; i < count; i++ {
+	var i uint
+	for ; i < count; i++ {
 		as[i], err = NewAddress(seed, start+i, security)
 		if err != nil {
 			return nil, err

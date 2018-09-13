@@ -27,7 +27,7 @@ package pow
 import (
 	"github.com/iotaledger/giota/curl"
 	"github.com/iotaledger/giota/trinary"
-	"github.com/iotaledger/giota/tx"
+
 	"testing"
 	"time"
 )
@@ -40,7 +40,7 @@ func testPowGo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	transaction = transaction[:len(transaction)-tx.NonceTrinarySize/3] + nonce
+	transaction = transaction[:len(transaction)-transaction.NonceTrinarySize/3] + nonce
 	h := curl.Hash(transaction)
 	if h[len(h)-4:] != "9999" {
 		t.Error("pow is illegal", h)

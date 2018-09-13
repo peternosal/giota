@@ -29,8 +29,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/iotaledger/giota/bigint"
+	"regexp"
 	"strings"
 	"unsafe"
+)
+
+var (
+	ErrInvalidASCIICharacter             = errors.New("invalid ASCII characters in string")
+	ErrInvalidTryteCharacter             = errors.New("trytes value contains invalid tryte character")
+	ErrInvalidLengthForToASCIIConversion = errors.New("trytes length must not be of odd length for ASCII conversion")
+	ErrInvalidByteSliceLength            = fmt.Errorf("BytesToTrits() is only defined for byte slices of length %d", ByteLength)
 )
 
 const (
@@ -187,7 +195,6 @@ func (t Trits) IsValidLength() bool {
 }
 
 // Bytes is only defined for hashes, i.e. slices of trits of length 243. It returns 48 bytes.
-// nolint: gocyclo, gas
 func (t Trits) Bytes() ([]byte, error) {
 	if t.IsValidLength() {
 		return nil, fmt.Errorf("Bytes() is only defined for trit slices of length %d", TritHashLength)
@@ -267,7 +274,7 @@ func (t Trits) Bytes() ([]byte, error) {
 // BytesToTrits converts binary to ternay
 func BytesToTrits(b []byte) (Trits, error) {
 	if len(b) != ByteLength {
-		return nil, fmt.Errorf("BytesToTrits() is only defined for byte slices of length %d", ByteLength)
+		return nil, ErrInvalidByteSliceLength
 	}
 
 	rb := make([]byte, len(b))
@@ -277,7 +284,6 @@ func BytesToTrits(b []byte) (Trits, error) {
 	t := Trits(make([]int8, TritHashLength))
 	t[TritHashLength-1] = 0
 
-	// nolint: gas
 	base := (*(*[]uint32)(unsafe.Pointer(&rb)))[0:IntLength] // 12 * 32 bits = 384 bits
 
 	if bigint.IsNull(base) {
@@ -287,7 +293,6 @@ func BytesToTrits(b []byte) (Trits, error) {
 	var flipTrits bool
 
 	// Check if the MSB is 0, i.e. we have a positive number
-	// nolint: gas
 	msbM := (unsafe.Sizeof(base[IntLength-1]) * 8) - 1
 
 	switch {
@@ -365,7 +370,7 @@ func (t Trytes) Normalize() []int8 {
 	sum := 0
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 27; j++ {
-			normalized[i*27+j] = int8(t[i*27+j : i*27+j+1].Trits().Int())
+			normalized[i*27+j] = int8(t[i*27+j:i*27+j+1].Trits().Int())
 			sum += int(normalized[i*27+j])
 		}
 
@@ -393,20 +398,17 @@ func (t Trytes) Normalize() []int8 {
 	return normalized
 }
 
+var trytesRegex = regexp.MustCompile("^[9A-Z]+$")
+
 // IsValidTryte returns the validity of a tryte( must be rune A-Z or 9 )
 func IsValidTryte(t rune) error {
-	if ('A' <= t && t <= 'Z') || t == '9' {
-		return nil
-	}
-	return errors.New("invalid character")
+	return Trytes(string(t)).IsValid()
 }
 
 // IsValid returns true if t is made of valid trytes.
 func (t Trytes) IsValid() error {
-	for _, t := range t {
-		if err := IsValidTryte(t); err != nil {
-			return fmt.Errorf("%s in trytes", err)
-		}
+	if !trytesRegex.MatchString(string(t)) {
+		return ErrInvalidTryteCharacter
 	}
 	return nil
 }
@@ -421,4 +423,40 @@ func IncTrits(t Trits) {
 
 		t[j] = -1
 	}
+}
+
+var asciiRegex = regexp.MustCompile("^[\x00-\x7F]*$")
+
+// Converts an ascii encoded string to trytes
+func ASCIIToTrytes(input string) (Trytes, error) {
+	if !asciiRegex.MatchString(input) {
+		return "", ErrInvalidASCIICharacter
+	}
+
+	trytesStr := ""
+
+	for _, c := range input {
+		trytesStr += string(TryteAlphabet[c%27])
+		trytesStr += string(TryteAlphabet[(c-c%27)/27])
+	}
+
+	return ToTrytes(trytesStr)
+}
+
+// Converts trytes of even length to an ascii string
+func (t Trytes) ToASCII() (string, error) {
+	if err := t.IsValid(); err != nil {
+		return "", err
+	}
+
+	if len(t)%2 != 0 {
+		return "", ErrInvalidLengthForToASCIIConversion
+	}
+
+	ascii := ""
+	for i := 0; i < len(t); i += 2 {
+		ascii += string(strings.IndexRune(TryteAlphabet, rune(t[i])) + (strings.IndexRune(TryteAlphabet, rune(t[i+1])) * 27))
+	}
+
+	return ascii, nil
 }

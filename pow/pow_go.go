@@ -28,8 +28,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/iotaledger/giota/curl"
+	"github.com/iotaledger/giota/transaction"
 	"github.com/iotaledger/giota/trinary"
-	"github.com/iotaledger/giota/tx"
+
 	"runtime"
 	"sync"
 )
@@ -48,9 +49,9 @@ const (
 	low3  uint64 = 0xFFC0000007FFFFFF
 	high3 uint64 = 0x003FFFFFFFFFFFFF
 
-	nonceOffset         = curl.HashSize - tx.NonceTrinarySize
+	nonceOffset         = curl.HashSize - transaction.NonceTrinarySize
 	nonceInitStart      = nonceOffset + 4
-	nonceIncrementStart = nonceInitStart + tx.NonceTrinarySize/3
+	nonceIncrementStart = nonceInitStart + transaction.NonceTrinarySize/3
 )
 
 // PowFunc is the func type for PoW
@@ -164,7 +165,7 @@ func incr(lmid *[curl.StateSize]uint64, hmid *[curl.StateSize]uint64) bool {
 }
 
 func seri(l *[curl.StateSize]uint64, h *[curl.StateSize]uint64, n uint) trinary.Trits {
-	r := make(trinary.Trits, tx.NonceTrinarySize)
+	r := make(trinary.Trits, transaction.NonceTrinarySize)
 	for i := nonceOffset; i < curl.HashSize; i++ {
 		ll := (l[i] >> n) & 1
 		hh := (h[i] >> n) & 1
@@ -269,9 +270,9 @@ func PowGo(trytes trinary.Trytes, mwm int) (trinary.Trytes, error) {
 	stopGO = false
 
 	c := curl.NewCurl()
-	c.Absorb(trytes[:(tx.TransactionTrinarySize-curl.HashSize)/3])
+	c.Absorb(trytes[:(transaction.TransactionTrinarySize-curl.HashSize)/3])
 	tr := trytes.Trits()
-	copy(c.State, tr[tx.TransactionTrinarySize-curl.HashSize:])
+	copy(c.State, tr[transaction.TransactionTrinarySize-curl.HashSize:])
 
 	var (
 		result trinary.Trytes

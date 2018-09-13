@@ -81,7 +81,7 @@ func TestAddress(t *testing.T) {
 	tests := []struct {
 		name         trinary.Trytes
 		seed         trinary.Trytes
-		seedIndex    int
+		seedIndex    uint
 		seedSecurity int
 		address      trinary.Trytes
 		addressValid bool

@@ -64,7 +64,7 @@ func TestDigests(t *testing.T) {
 
 }
 
-func TestSeed(t *testing.T) {
+func TestNewSeed(t *testing.T) {
 	for i := 0; i < 10000; i++ {
 		s1 := NewSeed()
 		if err := s1.IsValid(); err != nil {
@@ -113,4 +113,18 @@ func TestSign(t *testing.T) {
 		t.Error("cannot validate signature.")
 	}
 
+}
+
+func TestNewSubseed(t *testing.T) {
+	var subseedTestSeed = "999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+	var subseedTestSeedExpect = "9NGBYIGJTUTYPACOHYWUGLWO9OASWBNWCIADXRWRSZPOSRYJTHDANSCVG9KULYERRBPBPLZHA9BEONKZW"
+	subseed, err := NewSubseed(trinary.Trytes(subseedTestSeed), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subseedTrytes := string(subseed.Trytes())
+	if subseedTrytes != subseedTestSeedExpect {
+		t.Fatalf("epxected subseed to be %s but was %s", subseedTestSeedExpect, subseedTrytes)
+	}
 }

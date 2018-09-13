@@ -95,30 +95,42 @@ func NewSeed() trinary.Trytes {
 	return trinary.Trytes(t)
 }
 
-// NewKeyTrits takes a seed encoded as Trytes, an index and a security
-// level to derive a private key returned as Trits
-func NewKeyTrits(seed trinary.Trytes, index, securityLevel int) (trinary.Trits, error) {
+// NewSubseed takes a seed and an index and returns the given subseed
+func NewSubseed(seed trinary.Trytes, index uint) (trinary.Trits, error) {
 	if err := seed.IsValid(); err != nil {
 		return nil, err
 	} else if len(seed) != trinary.TritHashLength/trinary.Radix {
 		return nil, ErrSeedTrytesLength
 	}
 
-	seedTrits := seed.Trits()
-	// Utils.increment
-	for i := 0; i < index; i++ {
-		trinary.IncTrits(seedTrits)
+	incrementedSeed := seed.Trits()
+	var i uint
+	for ; i < index; i++ {
+		trinary.IncTrits(incrementedSeed)
 	}
 
 	k := kerl.NewKerl()
-	err := k.Absorb(seedTrits)
+	err := k.Absorb(incrementedSeed)
+	if err != nil {
+		return nil, err
+	}
+	subseed, err := k.Squeeze(curl.HashSize)
+	if err != nil {
+		return nil, err
+	}
+	return subseed, err
+}
+
+// NewKeyTrits takes a seed encoded as Trytes, an index and a security
+// level to derive a private key returned as Trits
+func NewKeyTrits(seed trinary.Trytes, index uint, securityLevel int) (trinary.Trits, error) {
+	subseed, err := NewSubseed(seed, index)
 	if err != nil {
 		return nil, err
 	}
 
-	hashedTrits, _ := k.Squeeze(curl.HashSize)
-	k.Reset()
-	err = k.Absorb(hashedTrits)
+	k := kerl.NewKerl()
+	err = k.Absorb(subseed)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +139,10 @@ func NewKeyTrits(seed trinary.Trytes, index, securityLevel int) (trinary.Trits, 
 
 	for l := 0; l < securityLevel; l++ {
 		for i := 0; i < 27; i++ {
-			b, _ := k.Squeeze(curl.HashSize)
+			b, err := k.Squeeze(curl.HashSize)
+			if err != nil {
+				return nil, err
+			}
 			copy(key[(l*27+i)*curl.HashSize:], b)
 		}
 	}
@@ -137,7 +152,7 @@ func NewKeyTrits(seed trinary.Trytes, index, securityLevel int) (trinary.Trits, 
 
 // NewKey takes a seed encoded as Trytes, an index and a security
 // level to derive a private key returned as Trytes
-func NewKey(seed trinary.Trytes, index, securityLevel int) (trinary.Trytes, error) {
+func NewKey(seed trinary.Trytes, index uint, securityLevel int) (trinary.Trytes, error) {
 	ts, err := NewKeyTrits(seed, index, securityLevel)
 	return ts.Trytes(), err
 }
@@ -228,7 +243,7 @@ func Digests(key trinary.Trits) (trinary.Trits, error) {
 }
 
 // digest calculates hash x normalizedBundleFragment[i] for each segment in keyTrits.
-func digest(normalizedBundleFragment []int8, signatureFragment trinary.Trytes) trinary.Trits {
+func digest(normalizedBundleFragment []int8, signatureFragment trinary.Trytes) (trinary.Trits, error) {
 	k := kerl.NewKerl()
 	for i := 0; i < 27; i++ {
 		bb := signatureFragment[i*curl.HashSize/3 : (i+1)*curl.HashSize/3].Trits()
@@ -239,8 +254,8 @@ func digest(normalizedBundleFragment []int8, signatureFragment trinary.Trytes) t
 		}
 		k.Absorb(bb)
 	}
-	tr, _ := k.Squeeze(curl.HashSize)
-	return tr
+	tr, err := k.Squeeze(curl.HashSize)
+	return tr, err
 }
 
 // Sign calculates signature from bundle hash and key
@@ -268,7 +283,10 @@ func IsValidSig(expectedAddress Address, signatureFragments []trinary.Trytes, bu
 	digests := make(trinary.Trits, curl.HashSize*len(signatureFragments))
 	for i := range signatureFragments {
 		start := 27 * (i % 3)
-		digestBuffer := digest(normalizedBundleHash[start:start+27], signatureFragments[i])
+		digestBuffer, err := digest(normalizedBundleHash[start:start+27], signatureFragments[i])
+		if err != nil {
+			return false
+		}
 		copy(digests[i*curl.HashSize:], digestBuffer)
 	}
 
