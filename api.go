@@ -863,8 +863,8 @@ func (api *API) AddRemainder(in Balances, bundle *bundle.Bundle, security int, r
 	for _, bal := range in {
 		var err error
 
-		// Add input as bundle entry
-		bundle.Add(security, bal.Address, -bal.Value, time.Now(), curl.EmptyHash)
+		// AddEntry input as bundle entry
+		bundle.AddEntry(security, bal.Address, -bal.Value, time.Now(), curl.EmptyHash)
 
 		// If there is a remainder value add extra output to send remaining funds to
 		if remain := bal.Value - total; remain > 0 {
@@ -879,7 +879,7 @@ func (api *API) AddRemainder(in Balances, bundle *bundle.Bundle, security int, r
 			}
 
 			// Remainder bundle entry
-			bundle.Add(1, adr, remain, time.Now(), curl.EmptyHash)
+			bundle.AddEntry(1, adr, remain, time.Now(), curl.EmptyHash)
 			return nil
 		}
 

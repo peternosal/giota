@@ -36,13 +36,13 @@ func TestValidTryte(t *testing.T) {
 	}
 
 	var validTryteCases = []validTryteTC{
-		validTryteTC{in: 'A', valid: true},
-		validTryteTC{in: 'Z', valid: true},
-		validTryteTC{in: '9', valid: true},
-		validTryteTC{in: '8', valid: false},
-		validTryteTC{in: 'a', valid: false},
-		validTryteTC{in: '-', valid: false},
-		validTryteTC{in: 'Ɩ', valid: false},
+		{in: 'A', valid: true},
+		{in: 'Z', valid: true},
+		{in: '9', valid: true},
+		{in: '8', valid: false},
+		{in: 'a', valid: false},
+		{in: '-', valid: false},
+		{in: 'Ɩ', valid: false},
 	}
 
 	for _, tc := range validTryteCases {
@@ -53,16 +53,16 @@ func TestValidTryte(t *testing.T) {
 }
 
 func TestValidTrytes(t *testing.T) {
-	type validTryteTC struct {
+	type validtrytetestcase struct {
 		in    Trytes
 		valid bool
 	}
 
-	var validTryteCases = []validTryteTC{
-		validTryteTC{in: "ABCDEFGHIJKLMNOPQRSTUVWXYZ9", valid: true},
-		validTryteTC{in: "ABCDEFGHIJKLMNOPQRSTUVWXYZ90", valid: false},
-		validTryteTC{in: "ABCDEFGHIJKLMNOPQRSTUVWXYZ9 ", valid: false},
-		validTryteTC{in: "Ɩ", valid: false},
+	var validTryteCases = []validtrytetestcase{
+		{in: "ABCDEFGHIJKLMNOPQRSTUVWXYZ9", valid: true},
+		{in: "ABCDEFGHIJKLMNOPQRSTUVWXYZ90", valid: false},
+		{in: "ABCDEFGHIJKLMNOPQRSTUVWXYZ9 ", valid: false},
+		{in: "Ɩ", valid: false},
 	}
 
 	for _, tc := range validTryteCases {
@@ -73,17 +73,17 @@ func TestValidTrytes(t *testing.T) {
 }
 
 func TestValidTrit(t *testing.T) {
-	type validTritTC struct {
+	type validtrittestcase struct {
 		in    int8
 		valid bool
 	}
 
-	var validTritCases = []validTritTC{
-		validTritTC{in: -1, valid: true},
-		validTritTC{in: 0, valid: true},
-		validTritTC{in: 1, valid: true},
-		validTritTC{in: -2, valid: false},
-		validTritTC{in: 2, valid: false},
+	var validTritCases = []validtrittestcase{
+		{in: -1, valid: true},
+		{in: 0, valid: true},
+		{in: 1, valid: true},
+		{in: -2, valid: false},
+		{in: 2, valid: false},
 	}
 
 	for _, tc := range validTritCases {
@@ -94,17 +94,17 @@ func TestValidTrit(t *testing.T) {
 }
 
 func TestValidTrits(t *testing.T) {
-	type validTritsTC struct {
+	type validtritstestcase struct {
 		in    Trits
 		valid bool
 	}
 
-	var validTritsCases = []validTritsTC{
-		validTritsTC{in: Trits{0}, valid: true},
-		validTritsTC{in: Trits{-1}, valid: true},
-		validTritsTC{in: Trits{1}, valid: true},
-		validTritsTC{in: Trits{0, -1, 1}, valid: true},
-		validTritsTC{in: Trits{2, -1, 1}, valid: false},
+	var validTritsCases = []validtritstestcase{
+		{in: Trits{0}, valid: true},
+		{in: Trits{-1}, valid: true},
+		{in: Trits{1}, valid: true},
+		{in: Trits{0, -1, 1}, valid: true},
+		{in: Trits{2, -1, 1}, valid: false},
 	}
 
 	for _, tc := range validTritsCases {

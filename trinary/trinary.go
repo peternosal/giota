@@ -364,7 +364,6 @@ func (t Trytes) Trits() Trits {
 }
 
 // Normalize normalized bits into trits so that the sum of trits TODO: (and?) bits is zero.
-// nolint: gocyclo
 func (t Trytes) Normalize() []int8 {
 	normalized := make([]int8, len(t))
 	sum := 0
@@ -459,4 +458,15 @@ func (t Trytes) ToASCII() (string, error) {
 	}
 
 	return ascii, nil
+}
+
+// Pad pads the given trytes with 9 up to the given size
+func Pad(orig Trytes, size int) Trytes {
+	out := make([]byte, size)
+	copy(out, []byte(orig))
+
+	for i := len(orig); i < size; i++ {
+		out[i] = '9'
+	}
+	return Trytes(out)
 }

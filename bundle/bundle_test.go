@@ -79,7 +79,7 @@ func TestBundle(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			bs.Add(1, tx.addr, tx.value, parsedTime, "")
+			bs.AddEntry(1, tx.addr, tx.value, parsedTime, "")
 		}
 
 		bundleHash, err := bs.Hash()

@@ -83,9 +83,9 @@ func (trs Transfers) AddOutputs() (Bundle, []trinary.Trytes, int64) {
 			frags = append(frags, tr.Message)
 		}
 
-		// Add first entries to the bundle
+		// AddEntry first entries to the bundle
 		// Slice the address in case the user provided a checksummed one
-		bundle.Add(nsigs, tr.Address, tr.Value, time.Now(), tr.Tag)
+		bundle.AddEntry(nsigs, tr.Address, tr.Value, time.Now(), tr.Tag)
 
 		// Sum up total value
 		total += tr.Value
@@ -98,7 +98,7 @@ type AddressInfos []AddressInfo
 // AddressInfo includes an address and its information for signing.
 type AddressInfo struct {
 	Seed     trinary.Trytes
-	Index    int
+	Index    uint
 	Security int
 }
 
