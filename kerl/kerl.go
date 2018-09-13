@@ -30,7 +30,7 @@ import (
 
 	"github.com/iotaledger/giota/curl"
 	"github.com/iotaledger/giota/trinary"
-	keccak "github.com/tildeleb/hashland/keccakpg"
+	keccak "golang.org/x/crypto/sha3"
 )
 
 // Kerl ...
