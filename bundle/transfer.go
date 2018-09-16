@@ -40,7 +40,7 @@ const (
 
 type Transfers []Transfer
 
-// Transfer is the data to be transferred by bundles.
+// Transfer descibes the data/value to transfer to an address.
 type Transfer struct {
 	Address signing.Address
 	Value   int64
@@ -50,44 +50,46 @@ type Transfer struct {
 
 const SignatureMessageFragmentSizeTrinary = transaction.SignatureMessageFragmentTrinarySize / 3
 
-func (trs Transfers) AddOutputs() (Bundle, []trinary.Trytes, int64) {
+// CreateBundle translates the transfer objects into a bundle consisting of all output transactions.
+// If a transfer object's message exceeds the signature message fragment size (2187 trytes),
+// additional transactions are added to the bundle to accustom the signature fragments.
+func (trs Transfers) CreateBundle() (Bundle, []trinary.Trytes, int64) {
 	var (
 		bundle Bundle
 		frags  []trinary.Trytes
 		total  int64
 	)
 	for _, tr := range trs {
-		nsigs := 1
+		numSignatures := 1
 
-		// If message longer than 2187 trytes, increase signatureMessageLength (add 2nd transaction)
-		switch {
-		case len(tr.Message) > SignatureMessageFragmentSizeTrinary:
-			// Get total length, message / maxLength (2187 trytes)
-			n := int(math.Floor(float64(len(tr.Message)) / SignatureMessageFragmentSizeTrinary))
-			nsigs += n
+		// if the message is longer than 2187 trytes, increase the amount of transactions for the entry
+		if len(tr.Message) > SignatureMessageFragmentSizeTrinary {
+			// get total length, message / signature message fragment (2187 trytes)
+			fragementsLength := int(math.Floor(float64(len(tr.Message)) / SignatureMessageFragmentSizeTrinary))
+			numSignatures += fragementsLength
 
-			// While there is still a message, copy it
-			for k := 0; k < n; k++ {
+			// copy out every fragment
+			for k := 0; k < fragementsLength; k++ {
 				var fragment trinary.Trytes
 				switch {
-				case k == n-1:
+				// remainder
+				case k == fragementsLength-1:
 					fragment = tr.Message[k*SignatureMessageFragmentSizeTrinary:]
 				default:
 					fragment = tr.Message[k*SignatureMessageFragmentSizeTrinary : (k+1)*SignatureMessageFragmentSizeTrinary]
 				}
 
-				// Pad remainder of fragment
 				frags = append(frags, fragment)
 			}
-		default:
+		} else {
 			frags = append(frags, tr.Message)
 		}
 
-		// AddEntry first entries to the bundle
-		// Slice the address in case the user provided a checksummed one
-		bundle.AddEntry(nsigs, tr.Address, tr.Value, time.Now(), tr.Tag)
+		// add output transaction(s) to the bundle for this transfer
+		// slice the address in case the user provided one with a checksum
+		bundle.AddEntry(numSignatures, tr.Address[:81], tr.Value, time.Now(), tr.Tag)
 
-		// Sum up total value
+		// sum up the total value to transfer
 		total += tr.Value
 	}
 	return bundle, frags, total
@@ -99,7 +101,7 @@ type AddressInfos []AddressInfo
 type AddressInfo struct {
 	Seed     trinary.Trytes
 	Index    uint
-	Security int
+	Security signing.SecurityLevel
 }
 
 // Address makes an Address from an AddressInfo
@@ -125,7 +127,7 @@ func DoPoW(trunkTx, branchTx trinary.Trytes, trytes []transaction.Transaction, m
 			trytes[i].BranchTransaction = trunkTx
 		}
 
-		timestamp := trinary.Int2Trits(time.Now().UnixNano()/1000000, transaction.TimestampTrinarySize).Trytes()
+		timestamp := trinary.IntToTrits(time.Now().UnixNano()/1000000, transaction.TimestampTrinarySize).Trytes()
 		trytes[i].AttachmentTimestamp = timestamp
 		trytes[i].AttachmentTimestampLowerBound = ""
 		trytes[i].AttachmentTimestampUpperBound = MaxTimestampTrytes

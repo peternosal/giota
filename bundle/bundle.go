@@ -43,18 +43,33 @@ var (
 	ErrNonFinalizedBundle   = errors.New("bundle wasn't finalized")
 )
 
+type Bundles []Bundle
+
+// BundlesByTimestamp are sorted bundles by attachment timestamp
+type BundlesByTimestamp Bundles
+
+func (a BundlesByTimestamp) Len() int {
+	return len(a)
+}
+func (a BundlesByTimestamp) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+func (a BundlesByTimestamp) Less(i, j int) bool {
+	return a[i][0].AttachmentTimestamp.Trits().Value() < a[j][0].AttachmentTimestamp.Trits().Value()
+}
+
 // Bundle represents grouped together transactions for creating a transfer.
 type Bundle []transaction.Transaction
 
-// AddEntry adds a new transaction entry to the bundle. By the given security level it adds
+// AddEntry adds a new transaction entry to the bundle. By the given num. fragments it adds
 // one ore more transaction to accustom the resulting signature message fragments.
 // Transaction properties not specified as parameters to this function are initialized with empty hash values.
-func (bundle *Bundle) AddEntry(securityLvl int, address signing.Address, value int64, timestamp time.Time, tag trinary.Trytes) {
+func (bundle *Bundle) AddEntry(numFragments int, address signing.Address, value int64, timestamp time.Time, tag trinary.Trytes) {
 	if tag == "" {
 		tag = curl.EmptyHash[:27]
 	}
 
-	for i := 0; i < securityLvl; i++ {
+	for i := 0; i < int(numFragments); i++ {
 		var v int64
 
 		if i == 0 {
@@ -149,7 +164,7 @@ func (bundle Bundle) NormalizedHash() (trinary.Trytes, error) {
 		offset := transaction.ObsoleteTagTrinaryOffset - transaction.AddressTrinaryOffset
 
 		if valid {
-			bundle[0].ObsoleteTag = buf[offset:offset+transaction.ObsoleteTagTrinarySize].Trytes()
+			bundle[0].ObsoleteTag = buf[offset : offset+transaction.ObsoleteTagTrinarySize].Trytes()
 			return h, nil
 		}
 
@@ -163,11 +178,11 @@ func (bundle Bundle) NormalizedHash() (trinary.Trytes, error) {
 // address, value, obsolete tag, timestamp, current index, last index
 func copyRelevantTritsForBundleHash(buf trinary.Trits, b *transaction.Transaction, i, l int) {
 	copy(buf, trinary.Trytes(b.Address).Trits())
-	copy(buf[243:], trinary.Int2Trits(b.Value, transaction.ValueTrinarySize))
+	copy(buf[243:], trinary.IntToTrits(b.Value, transaction.ValueTrinarySize))
 	copy(buf[243+81:], b.ObsoleteTag.Trits())
-	copy(buf[243+81+81:], trinary.Int2Trits(b.Timestamp.Unix(), transaction.TimestampTrinarySize))
-	copy(buf[243+81+81+27:], trinary.Int2Trits(int64(i), transaction.CurrentIndexTrinarySize))
-	copy(buf[243+81+81+27+27:], trinary.Int2Trits(int64(l-1), transaction.LastIndexTrinarySize))
+	copy(buf[243+81+81:], trinary.IntToTrits(b.Timestamp.Unix(), transaction.TimestampTrinarySize))
+	copy(buf[243+81+81+27:], trinary.IntToTrits(int64(i), transaction.CurrentIndexTrinarySize))
+	copy(buf[243+81+81+27+27:], trinary.IntToTrits(int64(l-1), transaction.LastIndexTrinarySize))
 }
 
 // Categorize categorizes a list of transfers into sent and received. It is important to
@@ -296,7 +311,7 @@ func (bundle Bundle) SignInputs(inputs []AddressInfo) error {
 
 		// if user chooses higher than 27-trytes security
 		// for each security level, add an additional signature
-		for j := 1; j < ai.Security; j++ {
+		for j := 1; j < int(ai.Security); j++ {
 			// since the signature is > 2187 trytes, we need to find the subsequent
 			// txs with the same address (and value = 0) to add the remainder of the signature fragment
 			if bundle[i+j].Address != bundle[i].Address || bundle[i+j].Value != 0 {
@@ -309,4 +324,43 @@ func (bundle Bundle) SignInputs(inputs []AddressInfo) error {
 		}
 	}
 	return nil
+}
+
+// GroupTransactionsIntoBundles groups the given transactions into groups of bundles.
+// Note that the same bundle can exist in the return slice multiple times, though they
+// are reattachments of the same transfer.
+func GroupTransactionsIntoBundles(txs transaction.Transactions) Bundles {
+	bundles := Bundles{}
+
+	for i := range txs {
+		tx := &txs[i]
+		if tx.CurrentIndex != 0 {
+			continue
+		}
+
+		bundle := Bundle{*tx}
+		lastIndex := int(tx.LastIndex)
+		current := tx
+		for x := 1; x <= lastIndex; x++ {
+			// get all txs belonging into this bundle
+			found := false
+			for j := range txs {
+				if current.Bundle != txs[j].Bundle ||
+					txs[j].CurrentIndex != current.CurrentIndex+1 ||
+					current.TrunkTransaction != txs[j].Hash() {
+					continue
+				}
+				found = true
+				bundle = append(bundle, txs[j])
+				current = &txs[j]
+				break
+			}
+			if !found {
+				break
+			}
+		}
+		bundles = append(bundles, bundle)
+	}
+
+	return bundles
 }

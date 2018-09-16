@@ -30,8 +30,49 @@ import (
 	"github.com/iotaledger/giota/pow"
 	"github.com/iotaledger/giota/signing"
 	"github.com/iotaledger/giota/trinary"
+	"math/rand"
 	"testing"
 )
+
+// publicNodes is a list of known public nodes from http://iotasupport.com/lightwallet.shtml.
+var (
+	publicNodes = []string{
+		"http://service.iotasupport.com:14265",
+		"http://eugene.iota.community:14265",
+		"http://eugene.iotasupport.com:14999",
+		"http://eugeneoldisoft.iotasupport.com:14265",
+		"http://mainnet.necropaz.com:14500",
+		"http://iotatoken.nl:14265",
+		"http://iota.digits.blue:14265",
+		"http://wallets.iotamexico.com:80",
+		"http://5.9.137.199:14265",
+		"http://5.9.118.112:14265",
+		"http://5.9.149.169:14265",
+		"http://88.198.230.98:14265",
+		"http://176.9.3.149:14265",
+		"http://iota.bitfinex.com:80",
+	}
+)
+
+// randomNode returns a random node from publicNodes. If local IRI exists, return
+// localhost address.
+func randomNode() string {
+	// local
+	api := NewAPI("", nil)
+	_, err := api.GetNodeInfo()
+	if err == nil {
+		return api.endpoint
+	}
+
+	// random node
+	b := make([]byte, 1)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+
+	// return a node from the public node slice
+	return publicNodes[int(b[0])%len(publicNodes)]
+}
 
 func TestAPIGetNodeInfo(t *testing.T) {
 	if testing.Short() {
@@ -42,7 +83,7 @@ func TestAPIGetNodeInfo(t *testing.T) {
 	var resp *GetNodeInfoResponse
 
 	for i := 0; i < 5; i++ {
-		var server = RandomNode()
+		var server = randomNode()
 		api := NewAPI(server, nil)
 		resp, err = api.GetNodeInfo()
 		if err == nil {
@@ -115,7 +156,7 @@ func TestAPIFindTransactions(t *testing.T) {
 
 	ftr := &FindTransactionsRequest{Bundles: []trinary.Trytes{"DEXRPLKGBROUQMKCLMRPG9HFKCACDZ9AB9HOJQWERTYWERJNOYLW9PKLOGDUPC9DLGSUH9UHSKJOASJRU"}}
 	for i := 0; i < 5; i++ {
-		var server = RandomNode()
+		var server = randomNode()
 		api := NewAPI(server, nil)
 
 		resp, err = api.FindTransactions(ftr)
@@ -140,7 +181,7 @@ func TestAPIGetTrytes(t *testing.T) {
 	var resp *GetTrytesResponse
 
 	for i := 0; i < 5; i++ {
-		var server = RandomNode()
+		var server = randomNode()
 		api := NewAPI(server, nil)
 
 		resp, err = api.GetTrytes([]trinary.Trytes{}...)
@@ -165,7 +206,7 @@ func TestAPIGetInclusionStates(t *testing.T) {
 	var resp *GetInclusionStatesResponse
 
 	for i := 0; i < 5; i++ {
-		var server = RandomNode()
+		var server = randomNode()
 		api := NewAPI(server, nil)
 		resp, err = api.GetInclusionStates([]trinary.Trytes{}, []trinary.Trytes{})
 		if err == nil {
@@ -189,7 +230,7 @@ func TestAPIGetBalances(t *testing.T) {
 	var resp *GetBalancesResponse
 
 	for i := 0; i < 5; i++ {
-		var server = RandomNode()
+		var server = randomNode()
 		api := NewAPI(server, nil)
 
 		resp, err = api.GetBalances([]signing.Address{}, 100)
@@ -214,7 +255,7 @@ func TestAPIGetTransactionsToApprove(t *testing.T) {
 	var resp *GetTransactionsToApproveResponse
 
 	for i := 0; i < 5; i++ {
-		var server = RandomNode()
+		var server = randomNode()
 		api := NewAPI(server, nil)
 
 		resp, err = api.GetTransactionsToApprove(3, "")
@@ -240,7 +281,7 @@ func TestAPIGetLatestInclusion(t *testing.T) {
 	var resp []bool
 
 	for i := 0; i < 5; i++ {
-		var server = RandomNode()
+		var server = randomNode()
 		api := NewAPI(server, nil)
 
 		resp, err = api.GetLatestInclusion([]trinary.Trytes{"B9OETFYOEIUYEVB9WWCMGIHIJLFU9IJOBYYGSTZBLFBZLGZRKBIREYTIPPFGC9SPEOJFIYFRRSPX99999"})
@@ -261,7 +302,7 @@ func TestAPICheckConsistency(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	var server = RandomNode()
+	var server = randomNode()
 	api := NewAPI(server, nil)
 
 	resp, err := api.CheckConsistency([]trinary.Trytes{"NLNRYUTSLRQONSQEXBAJI9AIOJOEEJDOFJTETPFMB9AEEPUDIXXOTKXG9BYALEXOMSUYJEJSCZTY99999"})
@@ -291,8 +332,8 @@ func TestTransfer1(t *testing.T) {
 	)
 
 	for i := 0; i < 5; i++ {
-		api := NewAPI(RandomNode(), nil)
-		adr, adrs, err = api.GetUsedAddress(seed, 2)
+		api := NewAPI(randomNode(), nil)
+		adr, adrs, err = api.GetUntilFirstUnusedAddress(seed, 2)
 		if err == nil {
 			break
 		}
@@ -304,12 +345,12 @@ func TestTransfer1(t *testing.T) {
 
 	t.Log(adr, adrs)
 	if len(adrs) < 1 {
-		t.Error("GetUsedAddress is incorrect")
+		t.Error("GetUntilFirstUnusedAddress is incorrect")
 	}
 
 	var bal Balances
 	for i := 0; i < 5; i++ {
-		api := NewAPI(RandomNode(), nil)
+		api := NewAPI(randomNode(), nil)
 		bal, err = api.GetInputs(seed, 0, 10, 1000, 2)
 		if err == nil {
 			break
@@ -343,7 +384,7 @@ func TestTransfer2(t *testing.T) {
 
 	var bdl bundle.Bundle
 	for i := 0; i < 5; i++ {
-		api := NewAPI(RandomNode(), nil)
+		api := NewAPI(randomNode(), nil)
 		bdl, err = api.PrepareTransfers(seed, trs, nil, "", 2)
 		if err == nil {
 			break
@@ -369,7 +410,7 @@ func TestTransfer2(t *testing.T) {
 	t.Log("using PoW: ", name)
 
 	for i := 0; i < 5; i++ {
-		api := NewAPI(RandomNode(), nil)
+		api := NewAPI(randomNode(), nil)
 		bdl, err = api.Send(seed, 2, 3, trs, 18, pow)
 		if err == nil {
 			break

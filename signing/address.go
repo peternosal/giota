@@ -7,6 +7,8 @@ import (
 	"github.com/iotaledger/giota/trinary"
 )
 
+type Addresses []Address
+
 // Address represents an address without a checksum.
 // Don't type cast, use ToAddress instead to check validity.
 type Address trinary.Trytes
@@ -22,7 +24,7 @@ var (
 )
 
 // NewAddress generates a new address from the given seed without the checksum
-func NewAddress(seed trinary.Trytes, index uint, security int) (Address, error) {
+func NewAddress(seed trinary.Trytes, index uint, security SecurityLevel) (Address, error) {
 	k, err := NewKeyTrits(seed, index, security)
 	if err != nil {
 		return "", err
@@ -42,7 +44,7 @@ func NewAddress(seed trinary.Trytes, index uint, security int) (Address, error) 
 }
 
 // NewAddresses generates N new addresses from the given seed without a checksum
-func NewAddresses(seed trinary.Trytes, start, count uint, security int) ([]Address, error) {
+func NewAddresses(seed trinary.Trytes, start, count uint, security SecurityLevel) ([]Address, error) {
 	as := make([]Address, count)
 
 	var err error

@@ -65,7 +65,7 @@ var (
 	ErrInvalidKernelName                  = errors.New("cl: Invalid Kernel Name")
 	ErrInvalidKernelDefinition            = errors.New("cl: Invalid Kernel Definition")
 	ErrInvalidKernel                      = errors.New("cl: Invalid Kernel")
-	ErrInvalidArgIndex                    = errors.New("cl: Invalid Arg Index")
+	ErrInvalidArgIndex                    = errors.New("cl: Invalid Arg KeyIndex")
 	ErrInvalidArgValue                    = errors.New("cl: Invalid Arg Value")
 	ErrInvalidArgSize                     = errors.New("cl: Invalid Arg Size")
 	ErrInvalidKernelArgs                  = errors.New("cl: Invalid Kernel Args")

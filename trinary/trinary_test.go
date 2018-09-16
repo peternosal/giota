@@ -186,14 +186,14 @@ func TestConvert(t *testing.T) {
 	}
 
 	st := Trits{0, 1, -1, 1, 1, -1, -1, 1, 1, 0, 0, 1, 0, 1, 1}
-	trits2 := Int2Trits(target, 15)
+	trits2 := IntToTrits(target, 15)
 	if !st.Equal(trits2) {
-		t.Error("Int2Trits() is illegal.", trits2)
+		t.Error("IntToTrits() is illegal.", trits2)
 	}
 
-	trits22 := Int2Trits(-1024, 7)
+	trits22 := IntToTrits(-1024, 7)
 	if !trits22.Equal(Trits{-1, 1, 0, 1, -1, -1, -1}) {
-		t.Error("Int2Trits() is illegal.")
+		t.Error("IntToTrits() is illegal.")
 	}
 
 	try := st.Trytes()
@@ -221,6 +221,14 @@ func TestTrytes_Normalize(t *testing.T) {
 	}
 }
 
+func TestTrits_Value(t *testing.T) {
+	trits := Trits{1, 1, 1, 0, 0, 0, 1, -1, 1, -1, 1}
+	const expected = 44482
+	if trits.Value() != expected {
+		t.Fatalf("expected value %d but got %d\n", expected, trits.Value())
+	}
+}
+
 func TestASCIIToTrytes(t *testing.T) {
 	const ascii = "IOTA"
 	const utf8 = "Γιώτα"
@@ -241,7 +249,6 @@ func TestASCIIToTrytes(t *testing.T) {
 		t.Fatalf("expected an error for the invalid ascii input of %v", utf8)
 	}
 }
-
 
 func TestTrytes_ToASCII(t *testing.T) {
 	const trytes = Trytes("SBYBCCKB")
@@ -268,7 +275,7 @@ func TestTrytes_ToASCII(t *testing.T) {
 		t.Fatalf("expected invalid tryte char error but got: %v", err)
 	}
 
-	_, err = trytesWithOddLength.ToASCII();
+	_, err = trytesWithOddLength.ToASCII()
 	if err == nil {
 		t.Fatalf("expected an error for non convertible tryte value %s", trytesWithOddLength)
 	}

@@ -79,6 +79,15 @@ func IsValidTrit(t int8) error {
 	return errors.New("invalid number")
 }
 
+// Value converts trits into an integer value.
+func (t Trits) Value() int64 {
+	var value int64
+	for i := len(t) - 1; i >= 0; i-- {
+		value = value*3 + int64(t[i])
+	}
+	return value
+}
+
 // IsValid returns true if t is valid trits.
 func (t Trits) IsValid() error {
 	for _, tt := range t {
@@ -103,8 +112,8 @@ func (t Trits) Equal(b Trits) bool {
 	return true
 }
 
-// Int2Trits converts int64 to trits.
-func Int2Trits(v int64, size int) Trits {
+// IntToTrits converts int64 to trits.
+func IntToTrits(v int64, size int) Trits {
 	tr := make(Trits, size)
 	neg := false
 	if v < 0 {
@@ -369,7 +378,7 @@ func (t Trytes) Normalize() []int8 {
 	sum := 0
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 27; j++ {
-			normalized[i*27+j] = int8(t[i*27+j:i*27+j+1].Trits().Int())
+			normalized[i*27+j] = int8(t[i*27+j : i*27+j+1].Trits().Int())
 			sum += int(normalized[i*27+j])
 		}
 

@@ -35,8 +35,11 @@ import (
 )
 
 const (
+	EmptyTag                  = trinary.Trytes("999999999999999999999999999")
 	DefaultMinWeightMagnitude = 14
 )
+
+type Transactions []Transaction
 
 // Transaction contains all info needed for an iota transaction
 type Transaction struct {
@@ -167,11 +170,11 @@ func (t *Transaction) Trytes() trinary.Trytes {
 	tr := make(trinary.Trits, TransactionTrinarySize)
 	copy(tr, t.SignatureMessageFragment.Trits())
 	copy(tr[AddressTrinaryOffset:], trinary.Trytes(t.Address).Trits())
-	copy(tr[ValueTrinaryOffset:], trinary.Int2Trits(t.Value, ValueTrinarySize))
+	copy(tr[ValueTrinaryOffset:], trinary.IntToTrits(t.Value, ValueTrinarySize))
 	copy(tr[ObsoleteTagTrinaryOffset:], t.ObsoleteTag.Trits())
-	copy(tr[TimestampTrinaryOffset:], trinary.Int2Trits(t.Timestamp.Unix(), TimestampTrinarySize))
-	copy(tr[CurrentIndexTrinaryOffset:], trinary.Int2Trits(t.CurrentIndex, CurrentIndexTrinarySize))
-	copy(tr[LastIndexTrinaryOffset:], trinary.Int2Trits(t.LastIndex, LastIndexTrinarySize))
+	copy(tr[TimestampTrinaryOffset:], trinary.IntToTrits(t.Timestamp.Unix(), TimestampTrinarySize))
+	copy(tr[CurrentIndexTrinaryOffset:], trinary.IntToTrits(t.CurrentIndex, CurrentIndexTrinarySize))
+	copy(tr[LastIndexTrinaryOffset:], trinary.IntToTrits(t.LastIndex, LastIndexTrinarySize))
 	copy(tr[BundleTrinaryOffset:], t.Bundle.Trits())
 	copy(tr[TrunkTransactionTrinaryOffset:], t.TrunkTransaction.Trits())
 	copy(tr[BranchTransactionTrinaryOffset:], t.BranchTransaction.Trits())

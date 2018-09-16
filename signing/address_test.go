@@ -82,7 +82,7 @@ func TestAddress(t *testing.T) {
 		name         trinary.Trytes
 		seed         trinary.Trytes
 		seedIndex    uint
-		seedSecurity int
+		seedSecurity SecurityLevel
 		address      trinary.Trytes
 		addressValid bool
 	}{

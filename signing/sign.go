@@ -60,12 +60,12 @@ func init() {
 	EmptySig = trinary.Trytes(bytes)
 }
 
-type SecurityLevel byte
+type SecurityLevel int
 
 const (
-	SECURITY_LEVEL_LOW    SecurityLevel = 1
-	SECURITY_LEVEL_MEDIUM SecurityLevel = 2
-	SECURITY_LEVEL_HIGH   SecurityLevel = 3
+	SecurityLevelLow    SecurityLevel = 1
+	SecurityLevelMedium SecurityLevel = 2
+	SecurityLevelHigh   SecurityLevel = 3
 )
 
 // NewSeed generate a random Trytes
@@ -123,7 +123,7 @@ func NewSubseed(seed trinary.Trytes, index uint) (trinary.Trits, error) {
 
 // NewKeyTrits takes a seed encoded as Trytes, an index and a security
 // level to derive a private key returned as Trits
-func NewKeyTrits(seed trinary.Trytes, index uint, securityLevel int) (trinary.Trits, error) {
+func NewKeyTrits(seed trinary.Trytes, index uint, securityLevel SecurityLevel) (trinary.Trits, error) {
 	subseed, err := NewSubseed(seed, index)
 	if err != nil {
 		return nil, err
@@ -135,9 +135,9 @@ func NewKeyTrits(seed trinary.Trytes, index uint, securityLevel int) (trinary.Tr
 		return nil, err
 	}
 
-	key := make(trinary.Trits, (curl.HashSize * 27 * securityLevel))
+	key := make(trinary.Trits, (curl.HashSize * 27 * int(securityLevel)))
 
-	for l := 0; l < securityLevel; l++ {
+	for l := 0; l < int(securityLevel); l++ {
 		for i := 0; i < 27; i++ {
 			b, err := k.Squeeze(curl.HashSize)
 			if err != nil {
@@ -152,7 +152,7 @@ func NewKeyTrits(seed trinary.Trytes, index uint, securityLevel int) (trinary.Tr
 
 // NewKey takes a seed encoded as Trytes, an index and a security
 // level to derive a private key returned as Trytes
-func NewKey(seed trinary.Trytes, index uint, securityLevel int) (trinary.Trytes, error) {
+func NewKey(seed trinary.Trytes, index uint, securityLevel SecurityLevel) (trinary.Trytes, error) {
 	ts, err := NewKeyTrits(seed, index, securityLevel)
 	return ts.Trytes(), err
 }
