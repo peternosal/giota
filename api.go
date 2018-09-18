@@ -901,15 +901,15 @@ func (api *API) GetUntilFirstUnusedAddress(seed trinary.Trytes, security signing
 		wg.Add(2)
 
 		go func() {
-			wg.Done()
 			findTxResp, err1 = api.FindTransactions(&FindTransactionsRequest{
 				Addresses: []signing.Address{adr},
 			})
+			wg.Done()
 		}()
 
 		go func() {
-			wg.Done()
 			spentStates, err2 = api.WereAddressesSpentFrom(adr)
+			wg.Done()
 		}()
 		wg.Wait()
 
